@@ -1,18 +1,38 @@
 # session-pet 🐣
 
-A pixel-art desktop companion for your coding agents — one native pet that
-watches **Claude Code and Codex** sessions alike (`native/SessionPet.swift`),
-plus a Claude Code statusline pet (`pet.py`). They share one brain: same
-species, name, and XP.
+A pixel-art desktop companion for your coding agents: one tiny always-on-top
+native pet that watches **every Claude Code and Codex session** on your Mac —
+it bounces while agents work, dings the moment one needs your input (including
+permission prompts, via an optional hook), flags sessions that stall mid-turn,
+shows live per-session cards (project, current tool, context size, last
+message), and levels up across 8 species as you ship. Plain Swift/AppKit,
+no Xcode, no dependencies.
+
+**Docs & tour:** <https://chud-lori.github.io/session-pet/>
+
+## Quick install
+
+```bash
+git clone https://github.com/chud-lori/session-pet.git
+cd session-pet
+./install.sh --login-item   # build + run + start at every login
+```
+
+`./install.sh --uninstall` removes it. Click the pet for its panel · drag to
+move · right-click to quit.
+
+> Maintainers: the docs page is served from `docs/` — enable it once via
+> GitHub **Settings → Pages → Deploy from a branch → `main` / `/docs`**.
 
 ## Native desktop pet (primary)
 
 ```bash
-swiftc -O native/SessionPet.swift -o native/SessionPet   # build (CLT only, no Xcode)
-./native/SessionPet [scale]                              # run, default scale 5
+swiftc -O native/src/*.swift -o native/SessionPet   # build (CLT only, no Xcode)
+./native/SessionPet [scale]                         # run, default scale 5
 ```
 
-Single-file Swift/AppKit. Same behavior as the Python pet plus what only native
+Plain Swift/AppKit split across a few files in `native/src/` — no Xcode
+project, no dependencies. Same behavior as the Python pet plus what only native
 can do: true per-pixel transparency with the **whole window clickable**,
 retina-crisp sprites, popover-style panel (click anywhere outside dismisses),
 per-session **context size** (`ctx 84k`) and the agent's **last message
@@ -106,6 +126,39 @@ this command):
 ```
 
 ## Customize
+
+### Native pet: sprite packs (drop-in)
+
+Drop a JSON file into `sprites/` — one species per file, picked up at the next
+pet launch and added to the species picker (no rebuild, no export step):
+
+- **Species key = filename stem**: `sprites/example-slime.json` → species
+  `example-slime`. If the key matches a built-in (`cat`, `egg`, …), **your pack
+  wins** and replaces that sprite.
+- **Schema** — same as one `species` entry in `native/assets.json`:
+  `{"name": "Slimey", "emoji": "🫧", "palette": {"X": "#7ee8a2", …},
+  "rows": ["....kkkk....", …]}`. Rows are pixel strings; each char is a
+  palette key.
+- **Conventions**: `.` = transparent; `o`/`w` are eye pixels (the pet redraws
+  them as `X` when blinking, so use `X` as the main body color to make closed
+  eyes look right). Built-ins are 16px wide.
+- Malformed files (bad JSON, missing/empty `rows`) are skipped, never crash;
+  run with `SESSION_PET_LOG=1` to see skips in `/tmp/session-pet.log`.
+- `sprites/example-slime.json` ships as a working template.
+
+### Native pet: sound packs
+
+The two pet sounds are overridable via optional keys in `.state/state.json`:
+
+- `"soundReady"` — a turn finished (default `Glass.aiff`)
+- `"soundInput"` — an agent needs you (default `Ping.aiff`)
+
+Values are either an absolute path or a bare filename resolved against the
+repo's `sounds/` dir, e.g. `{"soundReady": "meow.wav"}` plays
+`sounds/meow.wav`. Anything `afplay` can play works (aiff/wav/mp3/m4a). A
+missing file silently falls back to the system default.
+
+### Python statusline pet (legacy)
 
 ```bash
 python3 pet.py species              # list species (← marks current)

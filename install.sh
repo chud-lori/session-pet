@@ -25,7 +25,7 @@ echo "▸ exporting sprite assets"
 python3 "$ROOT/native/export_assets.py"
 
 echo "▸ building native pet"
-swiftc -O "$ROOT/native/SessionPet.swift" -o "$BIN"
+swiftc -O "$ROOT"/native/src/*.swift -o "$BIN"
 
 if [[ "${1:-}" == "--login-item" ]]; then
   echo "▸ installing LaunchAgent (starts at login)"

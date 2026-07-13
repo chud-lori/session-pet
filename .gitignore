@@ -4,6 +4,7 @@
 # build artifacts
 native/SessionPet
 *.o
+*.bak
 
 # test scratch home (fixtures are staged into it by test/run.sh)
 test/home/

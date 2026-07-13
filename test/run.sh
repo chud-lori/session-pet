@@ -10,7 +10,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "▸ building"
-swiftc -O "$ROOT/native/SessionPet.swift" -o "$ROOT/native/SessionPet"
+swiftc -O "$ROOT"/native/src/*.swift -o "$ROOT/native/SessionPet"
 
 echo "▸ arranging fixtures"
 PETHOME="$ROOT/test/home"

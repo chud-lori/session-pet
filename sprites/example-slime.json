@@ -1,0 +1,23 @@
+{
+  "name": "Slimey",
+  "emoji": "🫧",
+  "palette": {
+    "X": "#7ee8a2", "l": "#c9f7dc", "d": "#4fbf7e",
+    "o": "#26262e", "w": "#ffffff", "m": "#2e8b57", "k": "#2a4a38"
+  },
+  "rows": [
+    "....kkkkkkkk....",
+    "..kkXXXXXXXXkk..",
+    ".kXXllXXXXXXXXk.",
+    ".kXlXXXXXXXXXXk.",
+    "kXXXXXXXXXXXXXXk",
+    "kXXooXXXXXXooXXk",
+    "kXXowXXXXXXowXXk",
+    "kXXXXXXXXXXXXXXk",
+    "kXXXXXkmmkXXXXXk",
+    "kdXXXXXXXXXXXXdk",
+    "kddXXXXXXXXXXddk",
+    ".kddXXXXXXXXddk.",
+    "..kkddddddddkk.."
+  ]
+}

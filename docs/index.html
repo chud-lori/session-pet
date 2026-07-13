@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>session-pet — a pixel pet for your coding agents</title>
+<meta name="description" content="A native macOS pixel-art desktop pet that watches every Claude Code and Codex session — dings when an agent needs you, shows live session cards, and levels up as you ship.">
+<style>
+  :root {
+    --bg: #12121c;
+    --bg2: #181826;
+    --panel: #1e1e30;
+    --panel2: #242438;
+    --ink: #e8e6f0;
+    --muted: #9a97ad;
+    --line: #34324a;
+    --accent: #8ce99a;      /* working green */
+    --input: #ff6b6b;       /* needs-input red */
+    --ready: #ffd166;       /* ready yellow */
+    --stalled: #d4a373;     /* stalled amber */
+    --link: #9ecbff;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.65;
+    font-size: 16.5px;
+    /* faint pixel grid */
+    background-image:
+      linear-gradient(var(--bg2) 1px, transparent 1px),
+      linear-gradient(90deg, var(--bg2) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- pixel chrome ---------- */
+  .pixel-box {
+    background: var(--panel);
+    border: 2px solid var(--line);
+    border-radius: 2px;
+    box-shadow: 4px 4px 0 rgba(0,0,0,.45);
+  }
+  h1, h2, h3, .btn, .chip, .navlinks a, .kicker {
+    font-family: var(--mono);
+  }
+  h2 {
+    font-size: 1.35rem; letter-spacing: .02em; margin-bottom: 6px;
+  }
+  h2 .hash { color: var(--accent); margin-right: 8px; }
+  section { padding: 56px 0; border-top: 2px solid var(--line); }
+  .lead { color: var(--muted); max-width: 640px; margin-bottom: 30px; }
+
+  /* ---------- header / hero ---------- */
+  header.hero {
+    padding: 64px 0 56px;
+    text-align: center;
+    background:
+      radial-gradient(ellipse 70% 60% at 50% 0%, rgba(140,233,154,.08), transparent 70%);
+  }
+  .kicker {
+    display: inline-block; font-size: .78rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--accent);
+    border: 1px solid var(--line); padding: 5px 12px; border-radius: 2px;
+    background: var(--panel); margin-bottom: 26px;
+  }
+  .hero h1 {
+    font-size: clamp(1.7rem, 5.5vw, 2.7rem);
+    letter-spacing: .01em; margin-bottom: 16px;
+  }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p.sub {
+    color: var(--muted); max-width: 620px; margin: 0 auto 34px;
+  }
+  .pet-row {
+    display: flex; justify-content: center; align-items: flex-end;
+    gap: clamp(14px, 5vw, 44px); margin: 12px 0 36px; flex-wrap: wrap;
+  }
+  .pet {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .pet svg { image-rendering: pixelated; height: auto; }
+  .pet .name {
+    font-family: var(--mono); font-size: .74rem; color: var(--muted);
+    letter-spacing: .06em;
+  }
+  .pet .shadow {
+    width: 72px; height: 8px; border-radius: 50%;
+    background: rgba(0,0,0,.5); margin-top: -4px;
+  }
+  @keyframes hop {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .pet.hop svg { animation: hop 1.1s steps(2, end) infinite; }
+    .pet.hop2 svg { animation: hop 1.1s steps(2, end) infinite .35s; }
+    .pet.hop3 svg { animation: hop 1.1s steps(2, end) infinite .7s; }
+  }
+  .status-dots {
+    display: flex; gap: 10px; justify-content: center; margin-bottom: 34px;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 2px; }
+  .dot.g { background: var(--accent); } .dot.r { background: var(--input); }
+  .dot.y { background: var(--ready); }
+  .cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: 12px 22px; font-size: .88rem;
+    letter-spacing: .04em; border-radius: 2px; border: 2px solid var(--line);
+    box-shadow: 3px 3px 0 rgba(0,0,0,.45);
+    transition: transform .08s, box-shadow .08s;
+  }
+  .btn:hover { text-decoration: none; transform: translate(1px,1px); box-shadow: 2px 2px 0 rgba(0,0,0,.45); }
+  .btn.primary { background: var(--accent); color: #10241a; border-color: #5cb96e; font-weight: 700; }
+  .btn.ghost { background: var(--panel); color: var(--ink); }
+  .navlinks {
+    display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;
+    margin-top: 40px; font-size: .8rem;
+  }
+  .navlinks a { color: var(--muted); }
+  .navlinks a:hover { color: var(--ink); }
+
+  /* ---------- feature grid ---------- */
+  .grid {
+    display: grid; gap: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+  .card { padding: 22px; }
+  .card h3 { font-size: .95rem; margin-bottom: 8px; letter-spacing: .02em; }
+  .card p { font-size: .92rem; color: var(--muted); }
+  .card .glyph { font-size: 1.3rem; margin-bottom: 10px; display: block; }
+  .card code, p code, li code {
+    font-family: var(--mono); font-size: .85em;
+    background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 2px; padding: 1px 5px; color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+  .edge { border-left: 4px solid var(--line); }
+  .edge.green  { border-left-color: var(--accent); }
+  .edge.red    { border-left-color: var(--input); }
+  .edge.yellow { border-left-color: var(--ready); }
+  .edge.amber  { border-left-color: var(--stalled); }
+  .edge.blue   { border-left-color: var(--link); }
+  .edge.purple { border-left-color: #b678d4; }
+
+  /* ---------- code blocks ---------- */
+  .codeblock {
+    background: #0d0d15; border: 2px solid var(--line); border-radius: 2px;
+    box-shadow: 4px 4px 0 rgba(0,0,0,.45);
+    padding: 18px 20px; overflow-x: auto; margin: 18px 0;
+  }
+  .codeblock pre {
+    font-family: var(--mono); font-size: .84rem; line-height: 1.7;
+    color: #d5f2dc; white-space: pre;
+  }
+  .codeblock .c { color: #6d6a85; } /* comment */
+  .codeblock .p { color: var(--ready); } /* prompt */
+
+  /* ---------- how it works ---------- */
+  .steps { display: grid; gap: 16px; counter-reset: step; }
+  .step { padding: 20px 22px; display: flex; gap: 18px; align-items: flex-start; }
+  .step .num {
+    font-family: var(--mono); font-weight: 700; font-size: .9rem;
+    color: var(--accent); border: 2px solid var(--line); background: var(--panel2);
+    min-width: 34px; height: 34px; display: flex; align-items: center;
+    justify-content: center; border-radius: 2px; flex-shrink: 0;
+  }
+  .step h3 { font-size: .95rem; margin-bottom: 6px; }
+  .step p { font-size: .92rem; color: var(--muted); }
+
+  /* ---------- phases legend ---------- */
+  .phases { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+  .chip {
+    font-size: .74rem; letter-spacing: .04em; padding: 6px 12px;
+    border-radius: 2px; border: 1px solid var(--line); background: var(--panel);
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .chip i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+  /* ---------- FAQ ---------- */
+  details {
+    background: var(--panel); border: 2px solid var(--line); border-radius: 2px;
+    box-shadow: 4px 4px 0 rgba(0,0,0,.45); margin-bottom: 14px;
+  }
+  summary {
+    cursor: pointer; padding: 16px 20px; font-family: var(--mono);
+    font-size: .9rem; list-style: none; user-select: none;
+  }
+  summary::before { content: "▸ "; color: var(--accent); }
+  details[open] summary::before { content: "▾ "; }
+  details .body { padding: 0 20px 18px; font-size: .92rem; color: var(--muted); }
+  details .body p + p { margin-top: 10px; }
+  details .body ul { margin: 8px 0 0 20px; }
+  details .body li { margin-bottom: 6px; }
+
+  footer {
+    border-top: 2px solid var(--line); padding: 36px 0 48px;
+    text-align: center; color: var(--muted); font-size: .84rem;
+  }
+  footer .mini-pets { display: flex; justify-content: center; gap: 20px; margin-bottom: 18px; }
+  footer .mini-pets svg { width: 40px; height: auto; image-rendering: pixelated; opacity: .85; }
+
+  @media (max-width: 560px) {
+    body { font-size: 15.5px; }
+    section { padding: 44px 0; }
+    .step { flex-direction: column; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="kicker">macOS · AppKit · single Swift file</span>
+    <h1>One tiny pet.<br>Every agent <em>session</em>.</h1>
+    <p class="sub">
+      session-pet is a pixel-art desktop companion that watches all of your
+      <strong>Claude Code</strong> and <strong>Codex</strong> sessions at once —
+      it bounces while agents work, dings the moment one needs <em>you</em>,
+      and levels up as you ship.
+    </p>
+
+    <div class="pet-row" aria-label="Pixel-art pets: Mochi the cat, Ember the dragon, and Inky the octopus">
+      <div class="pet hop">
+        <!-- Mochi (cat) — rendered from native/assets.json pixel map -->
+        <svg viewBox="0 0 16 15" width="112" height="105" shape-rendering="crispEdges" role="img" aria-label="Mochi the cat pixel sprite"><rect x="2" y="0" width="2" height="1" fill="#3a3644"/><rect x="12" y="0" width="2" height="1" fill="#3a3644"/><rect x="1" y="1" width="1" height="1" fill="#3a3644"/><rect x="2" y="1" width="2" height="1" fill="#aab1bc"/><rect x="4" y="1" width="1" height="1" fill="#3a3644"/><rect x="11" y="1" width="1" height="1" fill="#3a3644"/><rect x="12" y="1" width="2" height="1" fill="#aab1bc"/><rect x="14" y="1" width="1" height="1" fill="#3a3644"/><rect x="1" y="2" width="1" height="1" fill="#3a3644"/><rect x="2" y="2" width="1" height="1" fill="#aab1bc"/><rect x="3" y="2" width="1" height="1" fill="#f0a5bb"/><rect x="4" y="2" width="1" height="1" fill="#aab1bc"/><rect x="5" y="2" width="1" height="1" fill="#3a3644"/><rect x="10" y="2" width="1" height="1" fill="#3a3644"/><rect x="11" y="2" width="1" height="1" fill="#aab1bc"/><rect x="12" y="2" width="1" height="1" fill="#f0a5bb"/><rect x="13" y="2" width="1" height="1" fill="#aab1bc"/><rect x="14" y="2" width="1" height="1" fill="#3a3644"/><rect x="1" y="3" width="1" height="1" fill="#3a3644"/><rect x="2" y="3" width="4" height="1" fill="#aab1bc"/><rect x="6" y="3" width="4" height="1" fill="#3a3644"/><rect x="10" y="3" width="4" height="1" fill="#aab1bc"/><rect x="14" y="3" width="1" height="1" fill="#3a3644"/><rect x="1" y="4" width="1" height="1" fill="#3a3644"/><rect x="2" y="4" width="12" height="1" fill="#aab1bc"/><rect x="14" y="4" width="1" height="1" fill="#3a3644"/><rect x="0" y="5" width="1" height="1" fill="#3a3644"/><rect x="1" y="5" width="14" height="1" fill="#aab1bc"/><rect x="15" y="5" width="1" height="1" fill="#3a3644"/><rect x="0" y="6" width="1" height="1" fill="#3a3644"/><rect x="1" y="6" width="2" height="1" fill="#aab1bc"/><rect x="3" y="6" width="2" height="1" fill="#26262e"/><rect x="5" y="6" width="6" height="1" fill="#aab1bc"/><rect x="11" y="6" width="2" height="1" fill="#26262e"/><rect x="13" y="6" width="2" height="1" fill="#aab1bc"/><rect x="15" y="6" width="1" height="1" fill="#3a3644"/><rect x="0" y="7" width="1" height="1" fill="#3a3644"/><rect x="1" y="7" width="2" height="1" fill="#aab1bc"/><rect x="3" y="7" width="1" height="1" fill="#26262e"/><rect x="4" y="7" width="1" height="1" fill="#ffffff"/><rect x="5" y="7" width="6" height="1" fill="#aab1bc"/><rect x="11" y="7" width="1" height="1" fill="#26262e"/><rect x="12" y="7" width="1" height="1" fill="#ffffff"/><rect x="13" y="7" width="2" height="1" fill="#aab1bc"/><rect x="15" y="7" width="1" height="1" fill="#3a3644"/><rect x="0" y="8" width="1" height="1" fill="#3a3644"/><rect x="1" y="8" width="6" height="1" fill="#aab1bc"/><rect x="7" y="8" width="1" height="1" fill="#3a3644"/><rect x="8" y="8" width="2" height="1" fill="#f0a5bb"/><rect x="10" y="8" width="1" height="1" fill="#3a3644"/><rect x="11" y="8" width="4" height="1" fill="#aab1bc"/><rect x="15" y="8" width="1" height="1" fill="#3a3644"/><rect x="0" y="9" width="1" height="1" fill="#3a3644"/><rect x="1" y="9" width="1" height="1" fill="#8b91a0"/><rect x="2" y="9" width="12" height="1" fill="#aab1bc"/><rect x="14" y="9" width="1" height="1" fill="#8b91a0"/><rect x="15" y="9" width="1" height="1" fill="#3a3644"/><rect x="1" y="10" width="1" height="1" fill="#3a3644"/><rect x="2" y="10" width="12" height="1" fill="#aab1bc"/><rect x="14" y="10" width="1" height="1" fill="#3a3644"/><rect x="2" y="11" width="1" height="1" fill="#3a3644"/><rect x="3" y="11" width="10" height="1" fill="#aab1bc"/><rect x="13" y="11" width="1" height="1" fill="#3a3644"/><rect x="2" y="12" width="1" height="1" fill="#3a3644"/><rect x="3" y="12" width="10" height="1" fill="#aab1bc"/><rect x="13" y="12" width="1" height="1" fill="#3a3644"/><rect x="2" y="13" width="1" height="1" fill="#3a3644"/><rect x="3" y="13" width="1" height="1" fill="#8b91a0"/><rect x="4" y="13" width="2" height="1" fill="#aab1bc"/><rect x="6" y="13" width="1" height="1" fill="#3a3644"/><rect x="9" y="13" width="1" height="1" fill="#3a3644"/><rect x="10" y="13" width="2" height="1" fill="#aab1bc"/><rect x="12" y="13" width="1" height="1" fill="#8b91a0"/><rect x="13" y="13" width="1" height="1" fill="#3a3644"/><rect x="3" y="14" width="2" height="1" fill="#3a3644"/><rect x="11" y="14" width="2" height="1" fill="#3a3644"/></svg>
+        <div class="shadow"></div>
+        <span class="name">Mochi · cat</span>
+      </div>
+      <div class="pet hop2">
+        <!-- Ember (dragon) — rendered from native/assets.json pixel map -->
+        <svg viewBox="0 0 16 15" width="112" height="105" shape-rendering="crispEdges" role="img" aria-label="Ember the dragon pixel sprite"><rect x="2" y="0" width="2" height="1" fill="#ffd166"/><rect x="12" y="0" width="2" height="1" fill="#ffd166"/><rect x="1" y="1" width="1" height="1" fill="#2f4a33"/><rect x="2" y="1" width="2" height="1" fill="#ffd166"/><rect x="4" y="1" width="1" height="1" fill="#2f4a33"/><rect x="11" y="1" width="1" height="1" fill="#2f4a33"/><rect x="12" y="1" width="2" height="1" fill="#ffd166"/><rect x="14" y="1" width="1" height="1" fill="#2f4a33"/><rect x="1" y="2" width="1" height="1" fill="#2f4a33"/><rect x="2" y="2" width="2" height="1" fill="#6fce73"/><rect x="4" y="2" width="1" height="1" fill="#2f4a33"/><rect x="11" y="2" width="1" height="1" fill="#2f4a33"/><rect x="12" y="2" width="2" height="1" fill="#6fce73"/><rect x="14" y="2" width="1" height="1" fill="#2f4a33"/><rect x="1" y="3" width="1" height="1" fill="#2f4a33"/><rect x="2" y="3" width="4" height="1" fill="#6fce73"/><rect x="6" y="3" width="4" height="1" fill="#2f4a33"/><rect x="10" y="3" width="4" height="1" fill="#6fce73"/><rect x="14" y="3" width="1" height="1" fill="#2f4a33"/><rect x="1" y="4" width="1" height="1" fill="#2f4a33"/><rect x="2" y="4" width="12" height="1" fill="#6fce73"/><rect x="14" y="4" width="1" height="1" fill="#2f4a33"/><rect x="0" y="5" width="1" height="1" fill="#2f4a33"/><rect x="1" y="5" width="14" height="1" fill="#6fce73"/><rect x="15" y="5" width="1" height="1" fill="#2f4a33"/><rect x="0" y="6" width="1" height="1" fill="#2f4a33"/><rect x="1" y="6" width="2" height="1" fill="#6fce73"/><rect x="3" y="6" width="2" height="1" fill="#26262e"/><rect x="5" y="6" width="6" height="1" fill="#6fce73"/><rect x="11" y="6" width="2" height="1" fill="#26262e"/><rect x="13" y="6" width="2" height="1" fill="#6fce73"/><rect x="15" y="6" width="1" height="1" fill="#2f4a33"/><rect x="0" y="7" width="1" height="1" fill="#2f4a33"/><rect x="1" y="7" width="2" height="1" fill="#6fce73"/><rect x="3" y="7" width="1" height="1" fill="#26262e"/><rect x="4" y="7" width="1" height="1" fill="#ffffff"/><rect x="5" y="7" width="6" height="1" fill="#6fce73"/><rect x="11" y="7" width="1" height="1" fill="#26262e"/><rect x="12" y="7" width="1" height="1" fill="#ffffff"/><rect x="13" y="7" width="2" height="1" fill="#6fce73"/><rect x="15" y="7" width="1" height="1" fill="#2f4a33"/><rect x="0" y="8" width="1" height="1" fill="#2f4a33"/><rect x="1" y="8" width="5" height="1" fill="#6fce73"/><rect x="6" y="8" width="1" height="1" fill="#2f4a33"/><rect x="7" y="8" width="2" height="1" fill="#57b25c"/><rect x="9" y="8" width="1" height="1" fill="#2f4a33"/><rect x="10" y="8" width="5" height="1" fill="#6fce73"/><rect x="15" y="8" width="1" height="1" fill="#2f4a33"/><rect x="0" y="9" width="1" height="1" fill="#2f4a33"/><rect x="1" y="9" width="1" height="1" fill="#57b25c"/><rect x="2" y="9" width="12" height="1" fill="#6fce73"/><rect x="14" y="9" width="1" height="1" fill="#57b25c"/><rect x="15" y="9" width="1" height="1" fill="#2f4a33"/><rect x="1" y="10" width="1" height="1" fill="#2f4a33"/><rect x="2" y="10" width="3" height="1" fill="#6fce73"/><rect x="5" y="10" width="6" height="1" fill="#d9f2c9"/><rect x="11" y="10" width="3" height="1" fill="#6fce73"/><rect x="14" y="10" width="1" height="1" fill="#2f4a33"/><rect x="2" y="11" width="1" height="1" fill="#2f4a33"/><rect x="3" y="11" width="2" height="1" fill="#6fce73"/><rect x="5" y="11" width="6" height="1" fill="#d9f2c9"/><rect x="11" y="11" width="2" height="1" fill="#6fce73"/><rect x="13" y="11" width="1" height="1" fill="#2f4a33"/><rect x="2" y="12" width="1" height="1" fill="#2f4a33"/><rect x="3" y="12" width="2" height="1" fill="#6fce73"/><rect x="5" y="12" width="6" height="1" fill="#d9f2c9"/><rect x="11" y="12" width="2" height="1" fill="#6fce73"/><rect x="13" y="12" width="1" height="1" fill="#2f4a33"/><rect x="2" y="13" width="1" height="1" fill="#2f4a33"/><rect x="3" y="13" width="1" height="1" fill="#57b25c"/><rect x="4" y="13" width="2" height="1" fill="#6fce73"/><rect x="6" y="13" width="1" height="1" fill="#2f4a33"/><rect x="9" y="13" width="1" height="1" fill="#2f4a33"/><rect x="10" y="13" width="2" height="1" fill="#6fce73"/><rect x="12" y="13" width="1" height="1" fill="#57b25c"/><rect x="13" y="13" width="1" height="1" fill="#2f4a33"/><rect x="3" y="14" width="2" height="1" fill="#2f4a33"/><rect x="11" y="14" width="2" height="1" fill="#2f4a33"/></svg>
+        <div class="shadow"></div>
+        <span class="name">Ember · dragon</span>
+      </div>
+      <div class="pet hop3">
+        <!-- Inky (octopus) — rendered from native/assets.json pixel map -->
+        <svg viewBox="0 0 16 10" width="112" height="70" shape-rendering="crispEdges" role="img" aria-label="Inky the octopus pixel sprite"><rect x="4" y="0" width="8" height="1" fill="#3f3050"/><rect x="2" y="1" width="2" height="1" fill="#3f3050"/><rect x="4" y="1" width="8" height="1" fill="#b678d4"/><rect x="12" y="1" width="2" height="1" fill="#3f3050"/><rect x="1" y="2" width="1" height="1" fill="#3f3050"/><rect x="2" y="2" width="12" height="1" fill="#b678d4"/><rect x="14" y="2" width="1" height="1" fill="#3f3050"/><rect x="0" y="3" width="1" height="1" fill="#3f3050"/><rect x="1" y="3" width="14" height="1" fill="#b678d4"/><rect x="15" y="3" width="1" height="1" fill="#3f3050"/><rect x="0" y="4" width="1" height="1" fill="#3f3050"/><rect x="1" y="4" width="1" height="1" fill="#b678d4"/><rect x="2" y="4" width="2" height="1" fill="#26262e"/><rect x="4" y="4" width="8" height="1" fill="#b678d4"/><rect x="12" y="4" width="2" height="1" fill="#26262e"/><rect x="14" y="4" width="1" height="1" fill="#b678d4"/><rect x="15" y="4" width="1" height="1" fill="#3f3050"/><rect x="0" y="5" width="1" height="1" fill="#3f3050"/><rect x="1" y="5" width="1" height="1" fill="#b678d4"/><rect x="2" y="5" width="1" height="1" fill="#26262e"/><rect x="3" y="5" width="1" height="1" fill="#ffffff"/><rect x="4" y="5" width="8" height="1" fill="#b678d4"/><rect x="12" y="5" width="1" height="1" fill="#26262e"/><rect x="13" y="5" width="1" height="1" fill="#ffffff"/><rect x="14" y="5" width="1" height="1" fill="#b678d4"/><rect x="15" y="5" width="1" height="1" fill="#3f3050"/><rect x="0" y="6" width="1" height="1" fill="#3f3050"/><rect x="1" y="6" width="5" height="1" fill="#b678d4"/><rect x="6" y="6" width="4" height="1" fill="#3f3050"/><rect x="10" y="6" width="5" height="1" fill="#b678d4"/><rect x="15" y="6" width="1" height="1" fill="#3f3050"/><rect x="1" y="7" width="1" height="1" fill="#3f3050"/><rect x="2" y="7" width="12" height="1" fill="#b678d4"/><rect x="14" y="7" width="1" height="1" fill="#3f3050"/><rect x="1" y="8" width="1" height="1" fill="#3f3050"/><rect x="2" y="8" width="1" height="1" fill="#b678d4"/><rect x="3" y="8" width="1" height="1" fill="#3f3050"/><rect x="4" y="8" width="2" height="1" fill="#b678d4"/><rect x="6" y="8" width="1" height="1" fill="#3f3050"/><rect x="7" y="8" width="2" height="1" fill="#b678d4"/><rect x="9" y="8" width="1" height="1" fill="#3f3050"/><rect x="10" y="8" width="2" height="1" fill="#b678d4"/><rect x="12" y="8" width="1" height="1" fill="#3f3050"/><rect x="13" y="8" width="1" height="1" fill="#b678d4"/><rect x="14" y="8" width="1" height="1" fill="#3f3050"/><rect x="1" y="9" width="2" height="1" fill="#3f3050"/><rect x="4" y="9" width="2" height="1" fill="#3f3050"/><rect x="7" y="9" width="2" height="1" fill="#3f3050"/><rect x="10" y="9" width="2" height="1" fill="#3f3050"/><rect x="13" y="9" width="2" height="1" fill="#3f3050"/></svg>
+        <div class="shadow"></div>
+        <span class="name">Inky · octopus</span>
+      </div>
+    </div>
+
+    <div class="status-dots" aria-hidden="true" title="session status dots: working · needs input · ready">
+      <span class="dot g"></span><span class="dot r"></span><span class="dot y"></span>
+    </div>
+
+    <div class="cta">
+      <a class="btn primary" href="#install">Install</a>
+      <a class="btn ghost" href="https://github.com/chud-lori/session-pet">GitHub&nbsp;→</a>
+    </div>
+    <nav class="navlinks">
+      <a href="#features">features</a>
+      <a href="#install">install</a>
+      <a href="#how">how it works</a>
+      <a href="#faq">faq</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section id="features">
+    <div class="wrap">
+      <h2><span class="hash">#</span>What it does</h2>
+      <p class="lead">
+        A frameless, truly transparent, always-on-top window — clicks only land on
+        the pet's opaque pixels. One binary, zero dependencies, built with the
+        Xcode Command Line Tools alone.
+      </p>
+      <div class="grid">
+        <div class="pixel-box card edge blue">
+          <span class="glyph" aria-hidden="true">👀</span>
+          <h3>Watches every session</h3>
+          <p>One pet tails all Claude Code (<code>~/.claude/projects/*.jsonl</code>)
+             and Codex (<code>~/.codex/sessions/**/rollout-*.jsonl</code>) transcripts
+             at once, normalizing both providers to the same phases.</p>
+        </div>
+        <div class="pixel-box card edge red">
+          <span class="glyph" aria-hidden="true">🔔</span>
+          <h3>Needs-input detection</h3>
+          <p>Dings when an agent literally asks you something —
+             <code>AskUserQuestion</code>/<code>ExitPlanMode</code> for Claude,
+             <code>request_user_input</code> for Codex — and catches Claude Code
+             <strong>permission prompts</strong> via an optional Notification hook.</p>
+        </div>
+        <div class="pixel-box card edge amber">
+          <span class="glyph" aria-hidden="true">⏳</span>
+          <h3>Stalled sessions</h3>
+          <p>A session that goes silent mid-turn (hung tool, unhooked permission
+             prompt, crash) is flagged <em>stalled</em> in amber instead of quietly
+             pretending to work — and still dings if a late turn-end arrives.</p>
+        </div>
+        <div class="pixel-box card edge yellow">
+          <span class="glyph" aria-hidden="true">🔊</span>
+          <h3>Sounds you can trust</h3>
+          <p>Ping.aiff when an agent needs you, Glass.aiff when a turn finishes.
+             Debounced, one ding per session, mutable from the panel. The
+             false-positive budget is zero: a wrong ding is release-blocking.</p>
+        </div>
+        <div class="pixel-box card edge purple">
+          <span class="glyph" aria-hidden="true">✨</span>
+          <h3>XP, stages &amp; 8 species</h3>
+          <p>Earns XP from your sessions; an egg hatches at 30 XP and grows
+             hatchling → adult → legendary. Pick from cat, dragon, crab, octopus,
+             dino, fox, alien, or turtle in the visual sprite picker.</p>
+        </div>
+        <div class="pixel-box card edge green">
+          <span class="glyph" aria-hidden="true">🗂</span>
+          <h3>Live session cards</h3>
+          <p>Click the pet for a panel of per-session cards: project badge,
+             phase-tinted border, current tool + command/file, context size
+             (<code>ctx 84k</code>), and the agent's last message snippet.</p>
+        </div>
+      </div>
+
+      <div class="phases" aria-label="Session phases">
+        <span class="chip"><i style="background:var(--accent)"></i>working</span>
+        <span class="chip"><i style="background:var(--input)"></i>needs input</span>
+        <span class="chip"><i style="background:var(--ready)"></i>ready</span>
+        <span class="chip"><i style="background:var(--stalled)"></i>stalled</span>
+        <span class="chip"><i style="background:#6d6a85"></i>sleeping</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2><span class="hash">#</span>Install</h2>
+      <p class="lead">
+        Requirements: macOS 13+, Xcode Command Line Tools (<code>swiftc</code>),
+        <code>python3</code>. No Xcode, no package manager, no runtime deps.
+      </p>
+      <div class="codeblock"><pre><span class="p">$</span> git clone https://github.com/chud-lori/session-pet.git
+<span class="p">$</span> cd session-pet
+<span class="p">$</span> ./install.sh --login-item   <span class="c"># build + run + start at every login</span></pre></div>
+      <p style="color:var(--muted); font-size:.92rem">
+        Prefer a one-off run? Plain <code>./install.sh</code> builds and starts the
+        pet for this session only. <code>./install.sh --uninstall</code> removes the
+        LaunchAgent and stops the pet, leaving the repo and your pet's state untouched.
+      </p>
+      <p style="color:var(--muted); font-size:.92rem; margin-top:10px">
+        <strong style="color:var(--ink)">Optional — permission-prompt alerts:</strong>
+        to get a ding on Claude Code permission prompts, merge this fragment into
+        <code>~/.claude/settings.json</code> under <code>"hooks"</code> yourself
+        (the installer never edits your settings; requires <code>jq</code>):
+      </p>
+      <div class="codeblock"><pre>"Notification": [{"hooks": [{"type": "command", "async": true,
+  "command": "jq -c . &gt;&gt; /path/to/session-pet/.state/events.jsonl"}]}]</pre></div>
+      <p style="color:var(--muted); font-size:.92rem">
+        Then: <strong style="color:var(--ink)">click</strong> the pet for its panel ·
+        <strong style="color:var(--ink)">drag</strong> to move it anywhere ·
+        <strong style="color:var(--ink)">right-click</strong> to quit.
+      </p>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <h2><span class="hash">#</span>How it works</h2>
+      <p class="lead">
+        No SDKs, no daemons inside your agents — just careful reading of the
+        transcript files the agents already write.
+      </p>
+      <div class="steps">
+        <div class="pixel-box step">
+          <span class="num">1</span>
+          <div>
+            <h3>Tail, don't read</h3>
+            <p>Every couple of seconds the pet reads only the <em>tail</em> of each
+               recent transcript (last 64&nbsp;KB, escalating to 512&nbsp;KB when a turn
+               spans further back), with lossy UTF-8 decoding so a stray byte never
+               breaks parsing. Gigabyte-long sessions cost almost nothing.</p>
+          </div>
+        </div>
+        <div class="pixel-box step">
+          <span class="num">2</span>
+          <div>
+            <h3>Turn-end from the transcript, not the clock</h3>
+            <p>A session is "done" only when its last event says so —
+               <code>stop_reason: end_turn</code> for Claude,
+               <code>task_complete</code> for Codex. A long tool run or thinking
+               pause never counts as done, so there are no false "ready" dings.</p>
+          </div>
+        </div>
+        <div class="pixel-box step">
+          <span class="num">3</span>
+          <div>
+            <h3>Stop-hook continuation detection</h3>
+            <p>A Claude <code>end_turn</code> is not always the end of the turn:
+               a blocking <strong>Stop hook</strong> can continue the conversation
+               seconds later (one real session produced 33 such intermediate
+               end_turns). The pet spots the "Stop hook feedback" event that follows
+               and keeps the session in <em>working</em> — one ding, at the real end.</p>
+          </div>
+        </div>
+        <div class="pixel-box step">
+          <span class="num">4</span>
+          <div>
+            <h3>Permission prompts via hook</h3>
+            <p>Claude Code permission prompts don't appear in the transcript, so an
+               optional Notification hook appends them to
+               <code>.state/events.jsonl</code>; the pet tails that file and turns
+               them into <em>needs input</em>. Sessions silent mid-turn without a
+               hook event go <em>stalled</em> after a grace period.</p>
+          </div>
+        </div>
+        <div class="pixel-box step">
+          <span class="num">5</span>
+          <div>
+            <h3>One shared brain</h3>
+            <p>Species, name, XP, and the sound toggle live in
+               <code>.state/state.json</code> — shared with the (deprecated) Python
+               statusline pet, so your pet keeps its identity everywhere. Sprites
+               come from <code>native/assets.json</code>, the pixel-map source of
+               truth (the ones on this page are rendered straight from it).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <h2><span class="hash">#</span>FAQ</h2>
+      <details>
+        <summary>What sounds does it play, and how do I mute them?</summary>
+        <div class="body">
+          <p>Two macOS system sounds, played via <code>afplay</code>:
+             <strong>Ping.aiff</strong> when an agent needs your input and
+             <strong>Glass.aiff</strong> when a turn finishes. Each has its own
+             debounce clock, so a needs-input ping is never swallowed by a
+             just-played ready ding.</p>
+          <p>Mute from the pet's panel (Sound checkbox) or the right-click menu —
+             the setting persists in <code>.state/state.json</code>.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Which environment variables does the pet understand?</summary>
+        <div class="body">
+          <ul>
+            <li><code>SESSION_PET_HOME</code> — override the home directory the pet
+                scans for <code>~/.claude</code> and <code>~/.codex</code>
+                (used by the test suite to point at fixtures).</li>
+            <li><code>SESSION_PET_LOG=1</code> — enable debug logging.</li>
+          </ul>
+        </div>
+      </details>
+      <details>
+        <summary>How do I set up the permission-prompt hook?</summary>
+        <div class="body">
+          <p>Merge the <code>"Notification"</code> hook fragment printed at the end
+             of <code>./install.sh</code> (also shown in the Install section above)
+             into <code>~/.claude/settings.json</code> under <code>"hooks"</code>.
+             The installer deliberately never edits your settings for you.</p>
+          <p>The hook needs <code>jq</code> (<code>brew install jq</code>). It runs
+             async and appends one JSON line per notification to
+             <code>.state/events.jsonl</code>; the pet truncates that log itself so
+             it never grows unbounded. Without the hook everything else still works —
+             permission prompts just surface as <em>stalled</em> after a grace period
+             instead of an instant ping.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Does it work with both Claude Code and Codex?</summary>
+        <div class="body">
+          <p>Yes — that's the point. Both providers are parsed by per-provider
+             tailers and normalized to the same phases, so one pet (and one panel)
+             covers every session on the machine. Deliberately <em>only</em> those
+             two: no 17-provider support, ever.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How do I uninstall it?</summary>
+        <div class="body">
+          <p><code>./install.sh --uninstall</code> unloads and deletes the
+             LaunchAgent (<code>~/Library/LaunchAgents/com.session-pet.plist</code>)
+             and stops the running pet. The repo and your pet's state are left
+             untouched — delete the cloned directory if you want it all gone.
+             If you added the Notification hook, remove that fragment from
+             <code>~/.claude/settings.json</code> too.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Can the pet approve permission prompts or chat with the agent?</summary>
+        <div class="body">
+          <p>No, by design. The pet notifies; you act in the terminal. In-pet
+             approve/deny, chat-with-agent, and menu-bar rewrites are explicit
+             non-goals — it stays a small floating pet that never lies about
+             session state.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="mini-pets" aria-hidden="true">
+      <!-- Egg — rendered from native/assets.json pixel map -->
+      <svg viewBox="0 0 16 12" shape-rendering="crispEdges"><rect x="6" y="0" width="4" height="1" fill="#3a3644"/><rect x="4" y="1" width="2" height="1" fill="#3a3644"/><rect x="6" y="1" width="4" height="1" fill="#f6ecd8"/><rect x="10" y="1" width="2" height="1" fill="#3a3644"/><rect x="3" y="2" width="1" height="1" fill="#3a3644"/><rect x="4" y="2" width="2" height="1" fill="#f6ecd8"/><rect x="6" y="2" width="1" height="1" fill="#fffaf0"/><rect x="7" y="2" width="5" height="1" fill="#f6ecd8"/><rect x="12" y="2" width="1" height="1" fill="#3a3644"/><rect x="2" y="3" width="1" height="1" fill="#3a3644"/><rect x="3" y="3" width="1" height="1" fill="#f6ecd8"/><rect x="4" y="3" width="2" height="1" fill="#fffaf0"/><rect x="6" y="3" width="7" height="1" fill="#f6ecd8"/><rect x="13" y="3" width="1" height="1" fill="#3a3644"/><rect x="1" y="4" width="1" height="1" fill="#3a3644"/><rect x="2" y="4" width="1" height="1" fill="#f6ecd8"/><rect x="3" y="4" width="1" height="1" fill="#fffaf0"/><rect x="4" y="4" width="6" height="1" fill="#f6ecd8"/><rect x="10" y="4" width="1" height="1" fill="#dcc9a4"/><rect x="11" y="4" width="3" height="1" fill="#f6ecd8"/><rect x="14" y="4" width="1" height="1" fill="#3a3644"/><rect x="1" y="5" width="1" height="1" fill="#3a3644"/><rect x="2" y="5" width="12" height="1" fill="#f6ecd8"/><rect x="14" y="5" width="1" height="1" fill="#3a3644"/><rect x="0" y="6" width="1" height="1" fill="#3a3644"/><rect x="1" y="6" width="4" height="1" fill="#f6ecd8"/><rect x="5" y="6" width="1" height="1" fill="#dcc9a4"/><rect x="6" y="6" width="9" height="1" fill="#f6ecd8"/><rect x="15" y="6" width="1" height="1" fill="#3a3644"/><rect x="0" y="7" width="1" height="1" fill="#3a3644"/><rect x="1" y="7" width="9" height="1" fill="#f6ecd8"/><rect x="10" y="7" width="1" height="1" fill="#dcc9a4"/><rect x="11" y="7" width="4" height="1" fill="#f6ecd8"/><rect x="15" y="7" width="1" height="1" fill="#3a3644"/><rect x="1" y="8" width="1" height="1" fill="#3a3644"/><rect x="2" y="8" width="12" height="1" fill="#f6ecd8"/><rect x="14" y="8" width="1" height="1" fill="#3a3644"/><rect x="1" y="9" width="1" height="1" fill="#3a3644"/><rect x="2" y="9" width="1" height="1" fill="#dcc9a4"/><rect x="3" y="9" width="10" height="1" fill="#f6ecd8"/><rect x="13" y="9" width="1" height="1" fill="#dcc9a4"/><rect x="14" y="9" width="1" height="1" fill="#3a3644"/><rect x="2" y="10" width="1" height="1" fill="#3a3644"/><rect x="3" y="10" width="1" height="1" fill="#dcc9a4"/><rect x="4" y="10" width="8" height="1" fill="#f6ecd8"/><rect x="12" y="10" width="1" height="1" fill="#dcc9a4"/><rect x="13" y="10" width="1" height="1" fill="#3a3644"/><rect x="4" y="11" width="2" height="1" fill="#3a3644"/><rect x="6" y="11" width="4" height="1" fill="#dcc9a4"/><rect x="10" y="11" width="2" height="1" fill="#3a3644"/></svg>
+    </div>
+    <p>session-pet · single-file Swift/AppKit ·
+       <a href="https://github.com/chud-lori/session-pet">github.com/chud-lori/session-pet</a></p>
+    <p style="margin-top:6px">Sprites on this page are rendered directly from the
+       repo's <code style="font-family:var(--mono)">native/assets.json</code> pixel maps.</p>
+  </div>
+</footer>
+
+</body>
+</html>

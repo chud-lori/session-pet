@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# pet — start/stop/restart the session-pet from anywhere.
+#   pet          start (or restart) the pet via launchd
+#   pet stop     quit it (same as right-click → Quit)
+#   pet status   is it running?
+set -euo pipefail
+LABEL="com.session-pet"
+case "${1:-start}" in
+  stop)   pkill -x SessionPet 2>/dev/null && echo "pet stopped" || echo "pet was not running" ;;
+  status) pgrep -x SessionPet >/dev/null && echo "pet is running (pid $(pgrep -x SessionPet))" \
+                                         || echo "pet is not running" ;;
+  start|restart|*)
+    launchctl kickstart -k "gui/$(id -u)/$LABEL" 2>/dev/null \
+      || { nohup "$(cd "$(dirname "$0")" && pwd)/native/SessionPet" >/dev/null 2>&1 & disown; }
+    sleep 1
+    pgrep -x SessionPet >/dev/null && echo "pet is on screen" || echo "failed to start — try ./install.sh"
+    ;;
+esac
