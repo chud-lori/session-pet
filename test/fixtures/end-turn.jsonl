@@ -1,0 +1,2 @@
+{"type":"user","cwd":"/Users/test/proj","message":{"role":"user","content":"add a README badge"}}
+{"type":"assistant","cwd":"/Users/test/proj","message":{"role":"assistant","stop_reason":"end_turn","usage":{"input_tokens":1200,"cache_read_input_tokens":3400},"content":[{"type":"text","text":"Done — badge added to the README."}]}}

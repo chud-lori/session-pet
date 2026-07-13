@@ -1,0 +1,17 @@
+# pet state — personal, never committed (XP, species, hook event spool)
+.state/
+
+# build artifacts
+native/SessionPet
+*.o
+
+# test scratch home (fixtures are staged into it by test/run.sh)
+test/home/
+
+# python
+__pycache__/
+
+# macOS noise
+.DS_Store
+nohup.out
+*.log

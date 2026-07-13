@@ -1,0 +1,2 @@
+{"type":"user","cwd":"/Users/test/proj","message":{"role":"user","content":"pick a color scheme"}}
+{"type":"assistant","cwd":"/Users/test/proj","message":{"role":"assistant","stop_reason":"tool_use","usage":{"input_tokens":800},"content":[{"type":"tool_use","name":"AskUserQuestion","input":{"description":"Which color scheme do you prefer?"}}]}}
