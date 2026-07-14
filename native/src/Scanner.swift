@@ -279,6 +279,9 @@ var stopCache: [String: (Double, TailInfo)] = [:]
 // a single session. hookContinuation/newTurn detect those precisely once the
 // follow-up event is written; this hold only covers the 1-3s write gap.
 let readyConfirm = 4.0
+// how long "finished — waiting for you" stays before quietly fading to idle
+// when unacknowledged (clicking the card clears it immediately)
+let readyNag = 180.0
 var readyHold: [String: (String, Double)] = [:]  // path → (turn key, first seen)
 
 func scanSessions() -> [SessionInfo] {
@@ -317,15 +320,25 @@ func scanSessions() -> [SessionInfo] {
                     // end_turn is authoritative even at fresh mtime —
                     // housekeeping events keep touching the file after a turn
                     phase = "ready"; doing = "finished — waiting for you"
-                    if provider == "claude" {
-                        // …but a Claude end_turn may be a stop-hook/queued-msg
-                        // intermediate: hold "ready" until it survives
-                        // readyConfirm seconds with no newer assistant event
-                        let key = "\(info.snippet)|\(info.ctx ?? 0)"
-                        if readyHold[path]?.0 != key { readyHold[path] = (key, now) }
-                        if now - readyHold[path]!.1 < readyConfirm, age < readyConfirm + 30 {
-                            phase = "working"; doing = "finishing up…"
-                        }
+                    // track when this turn's ready state was first seen (also
+                    // feeds the stop-hook intermediate hold below)
+                    let key = "\(info.snippet)|\(info.ctx ?? 0)"
+                    // seed from the event's real age, not first-noticed time —
+                    // otherwise a pet restart resets every fade timer
+                    if readyHold[path]?.0 != key {
+                        readyHold[path] = (key, now - min(age, readyNag))
+                    }
+                    let readySince = now - readyHold[path]!.1
+                    if provider == "claude", readySince < readyConfirm,
+                       age < readyConfirm + 30 {
+                        // a Claude end_turn may be a stop-hook/queued-msg
+                        // intermediate: hold until it survives readyConfirm
+                        phase = "working"; doing = "finishing up…"
+                    } else if readySince > readyNag {
+                        // hybrid ack: unclicked for a while = you saw it;
+                        // fade to idle instead of nagging forever (clicking
+                        // the card still clears it instantly)
+                        phase = "idle"; doing = "done"
                     }
                 } else { phase = "idle"; doing = "done" }
             } else if age < workingWithin {
