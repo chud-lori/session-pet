@@ -18,8 +18,33 @@ cd session-pet
 ./install.sh --login-item   # build + run + start at every login
 ```
 
-`./install.sh --uninstall` removes it. Click the pet for its panel · drag to
-move · right-click to quit.
+`./install.sh --uninstall` removes it.
+
+## Using the pet
+
+| Action | How |
+|---|---|
+| Open the session panel | **click** the pet |
+| Close the panel | click the pet again, or click anywhere outside |
+| Move the pet | **drag** it |
+| Menu (panel / sound / quit) | **right-click** the pet |
+| Acknowledge a finished/needs-input session | click its card in the panel |
+| Expand a session card (path, tokens, last message) | click the card |
+| Change species / toggle sound | panel → **settings ▸** |
+
+The `pet` helper works from anywhere in the repo:
+
+```bash
+./pet          # start — or bring it back after quitting
+./pet stop     # quit (same as right-click → Quit)
+./pet status   # is it running?
+```
+
+It also returns automatically at next login (LaunchAgent). **Sounds:** a quiet
+*Glass* when a turn finishes; a louder **double *Ping*** when an agent needs
+your input — repeating every 45s (max 3×) until you acknowledge it, so you
+won't miss it while watching a video. **Dots under the pet** (2+ sessions):
+green = working, yellow = finished, blinking red = needs you.
 
 > Maintainers: the docs page is served from `docs/` — enable it once via
 > GitHub **Settings → Pages → Deploy from a branch → `main` / `/docs`**.

@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var view: PetView!
     var petPanel = Panel()
     var lastPoll = 0.0, lastSound = 0.0, lastPing = 0.0
+    var realerts: [String: (key: String, count: Int, lastAt: Double)] = [:]
     var evOffset: UInt64 = 0, evPrimed = false
     var notif: [String: (Double, String)] = [:]
     var prevPhases: [String: String] = [:]
@@ -228,6 +229,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             prevPhases = phases
+            // pager pattern: while a needs-input session stays unacknowledged,
+            // re-ping every 45s (max 3 extra) — one chime is easy to miss
+            // under YouTube/music; acking the card or answering stops it
+            for s in sessions where s.phase == "input" && acked[s.path] != ackKey(s) {
+                let key = ackKey(s)
+                var r = realerts[s.path] ?? (key: key, count: 0, lastAt: now)
+                if r.key != key { r = (key: key, count: 0, lastAt: now) }
+                if r.count < 3, now - r.lastAt > 45 {
+                    r.count += 1; r.lastAt = now
+                    view.alertUntil = now + 5
+                    lastPing = 0  // re-alert bypasses the debounce window
+                    playSound(.input, state: state, now: now)
+                }
+                realerts[s.path] = r
+            }
             let nActive = phases.values.filter { $0 == "working" || $0 == "busy" }.count
             let nInput = phases.values.filter { $0 == "input" }.count
             let nReady = phases.values.filter { $0 == "ready" }.count
@@ -259,11 +275,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let path = soundPath(kind, state)
         petLog("sound \((path as NSString).lastPathComponent)")
+        // volume: needs-input must cut through video/music (afplay -v gain);
+        // configurable via state.json soundVolume (default 1.6 input, 1.0 ready)
+        let userVol = (state["soundVolume"] as? NSNumber)?.doubleValue
+        let vol = userVol ?? (kind == .input ? 1.6 : 1.0)
+        afplay(path, volume: vol)
+        if kind == .input {
+            // double-ping pattern: repetition beats loudness through masking
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                self.afplay(path, volume: vol)
+            }
+        }
+    }
+
+    private func afplay(_ path: String, volume: Double) {
         // NSSound fire-and-forget gets released before audio starts; afplay
         // is what the Python pet used and it just works
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/afplay")
-        p.arguments = [path]
+        p.arguments = ["-v", String(format: "%.2f", min(max(volume, 0.1), 3.0)), path]
         try? p.run()
     }
 }

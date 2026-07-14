@@ -352,10 +352,29 @@
       </p>
       <div class="codeblock"><pre>"Notification": [{"hooks": [{"type": "command", "async": true,
   "command": "jq -c . &gt;&gt; /path/to/session-pet/.state/events.jsonl"}]}]</pre></div>
+      <h2 style="margin-top:34px"><span class="hash">#</span>Using the pet</h2>
       <p style="color:var(--muted); font-size:.92rem">
-        Then: <strong style="color:var(--ink)">click</strong> the pet for its panel ·
+        <strong style="color:var(--ink)">Click</strong> the pet → session panel
+        (click again or anywhere outside to close) ·
         <strong style="color:var(--ink)">drag</strong> to move it anywhere ·
-        <strong style="color:var(--ink)">right-click</strong> to quit.
+        <strong style="color:var(--ink)">right-click</strong> → menu (open panel /
+        sound on-off / quit). In the panel: click a session card to expand it
+        (path, context tokens, last message) and to acknowledge its alert;
+        <strong style="color:var(--ink)">settings ▸</strong> holds the species
+        picker and sound toggle.
+      </p>
+      <p style="color:var(--muted); font-size:.92rem; margin-top:10px">
+        Start / stop from a shell with the bundled helper — the pet also comes
+        back automatically at next login:
+      </p>
+      <div class="codeblock"><pre><span class="p">$</span> ./pet          <span class="c"># start — or bring it back after quitting</span>
+<span class="p">$</span> ./pet stop     <span class="c"># quit (same as right-click → Quit)</span>
+<span class="p">$</span> ./pet status   <span class="c"># is it running?</span></pre></div>
+      <p style="color:var(--muted); font-size:.92rem">
+        <strong style="color:var(--ink)">Sounds:</strong> a quiet <em>Glass</em>
+        when a turn finishes; a louder double <em>Ping</em> when an agent needs
+        your input — repeating every 45&nbsp;s (max&nbsp;3×) until acknowledged,
+        so it cuts through whatever you're watching.
       </p>
     </div>
   </section>
