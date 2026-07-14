@@ -1,4 +1,4 @@
-# session-pet 🐣
+# <img src="docs/icon.svg" width="40" alt="session-pet dragon" align="top"> session-pet
 
 A pixel-art desktop companion for your coding agents: one tiny always-on-top
 native pet that watches **every Claude Code and Codex session** on your Mac —
