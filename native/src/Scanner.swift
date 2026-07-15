@@ -19,6 +19,7 @@ struct TailInfo {
     var customTitle: String? = nil  // manual /rename — beats the AI title
     var agentName: String? = nil    // user-assigned agent name — beats dir badge
     var newTurn = false  // a real user prompt arrived AFTER the last end_turn
+    var newTurnAt: Double? = nil  // epoch seconds of that prompt, when known
     var hookContinuation = false  // Stop-hook feedback arrived AFTER end_turn
 }
 
@@ -41,6 +42,17 @@ func tailLines(_ path: String, want: UInt64 = 65536) -> [String] {
     // the first line of a mid-file chunk is almost certainly partial
     if start > 0, !lines.isEmpty { lines.removeFirst() }
     return lines
+}
+
+private let isoFrac: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return f
+}()
+private let isoPlain = ISO8601DateFormatter()
+
+func parseISO(_ s: String) -> Double? {
+    (isoFrac.date(from: s) ?? isoPlain.date(from: s))?.timeIntervalSince1970
 }
 
 func snippetOf(_ s: String) -> String {
@@ -96,15 +108,22 @@ func parseClaudeTail(_ lines: [String]) -> TailInfo {
             // newer than the last assistant event = a new turn is starting,
             // even though Claude hasn't written its first event yet (thinking)
             let content = (ev["message"] as? [String: Any])?["content"]
+            var isPrompt = false
             if let s = content as? String {
                 // local-command echoes and interruption markers are meta,
                 // not real prompts
-                if !s.hasPrefix("<local-command") && !s.hasPrefix("[Request interrupted") {
-                    info.newTurn = true
-                }
+                isPrompt = !s.hasPrefix("<local-command") && !s.hasPrefix("[Request interrupted")
             } else if let blocks = content as? [[String: Any]],
                       !blocks.contains(where: { $0["type"] as? String == "tool_result" }) {
+                isPrompt = true
+            }
+            if isPrompt {
                 info.newTurn = true
+                // when the prompt itself happened — an unanswered prompt from
+                // hours ago (session closed mid-send) is abandoned, not "processing"
+                if let ts = ev["timestamp"] as? String {
+                    info.newTurnAt = parseISO(ts)
+                }
             }
         }
         if type == "assistant" {
@@ -313,7 +332,10 @@ func scanSessions() -> [SessionInfo] {
                     // a blocking Stop hook is continuing the turn (memory
                     // checkpoint) — this end_turn is intermediate, no ding
                     phase = "working"; doing = "running stop hooks…"
-                } else if info.newTurn && age < busyGrace {
+                } else if info.newTurn && age < busyGrace
+                            && (info.newTurnAt.map { now - $0 < 180 } ?? true) {
+                    // only a RECENT unanswered prompt means "processing" —
+                    // an old one is an abandoned send, not an active turn
                     // prompt submitted, Claude thinking — no assistant event yet
                     phase = "working"; doing = "processing your prompt…"
                 } else if age < waitingWithin {
