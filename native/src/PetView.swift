@@ -6,6 +6,8 @@ final class PetView: NSView {
     var scale: CGFloat = 5
     var frameCount = 0
     var mode = "waiting"
+    var facing: CGFloat = 1   // 1 faces right, -1 faces left (walking)
+    var walking = false
     var sessions: [SessionInfo] = []
     var state: [String: Any] = loadState()
     var alertUntil = 0.0
@@ -74,7 +76,8 @@ final class PetView: NSView {
         let spriteKey = hatched ? speciesKey : "egg"
         let sp = assets.species[spriteKey] ?? assets.species["cat"]!
 
-        let bobPeriod = mode == "working" ? 2 : (mode == "waiting" ? 6 : 10)
+        // walking uses the fast bob (little steps); otherwise pace by mood
+        let bobPeriod = (walking || mode == "working") ? 2 : (mode == "waiting" ? 6 : 10)
         let bob = CGFloat((frameCount / bobPeriod) % 2) * (s / 2)
         let spriteW = CGFloat(sp.rows.first?.count ?? 16) * s
         let ox = (bounds.width - spriteW) / 2
@@ -86,7 +89,9 @@ final class PetView: NSView {
                                     width: 14 * s, height: 1.6 * s)).fill()
 
         let blink = mode == "sleeping" || frameCount % 16 == 0
-        drawSprite(spriteKey, scale: s, at: NSPoint(x: ox, y: baseY + bob), eyesClosed: blink)
+        drawSprite(spriteKey, scale: s, at: NSPoint(x: ox, y: baseY + bob),
+                   eyesClosed: blink, mirrored: facing < 0,
+                   walkFrame: walking ? frameCount / 2 : nil)
 
         // effects
         let effFont = NSFont(name: "Menlo-Bold", size: s + 6) ?? .systemFont(ofSize: s + 6)

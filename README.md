@@ -30,7 +30,7 @@ cd session-pet
 | Menu (panel / sound / quit) | **right-click** the pet |
 | Acknowledge a finished/needs-input session | click its card in the panel |
 | Expand a session card (path, tokens, last message) | click the card |
-| Change species / toggle sound | panel → **settings ▸** |
+| Change species / toggle sound / toggle wandering | panel → **settings ▸** |
 
 The `pet` helper works from anywhere in the repo:
 
@@ -40,7 +40,11 @@ The `pet` helper works from anywhere in the repo:
 ./pet status   # is it running?
 ```
 
-It also returns automatically at next login (LaunchAgent). **Sounds:** a quiet
+It also returns automatically at next login (LaunchAgent). **Wandering:** the
+pet takes short strolls along your screen (animated walk cycle) every so often
+— never while something needs your attention, and off entirely via
+settings ▸ "let the pet wander around". Wherever you drag it or it walks to
+is its new home. **Sounds:** a quiet
 *Glass* when a turn finishes; a louder **double *Ping*** when an agent needs
 your input — repeating every 45s (max 3×) until you acknowledge it, so you
 won't miss it while watching a video. **Dots under the pet** (2+ sessions):
@@ -157,6 +161,9 @@ this command):
 Drop a JSON file into `sprites/` — one species per file, picked up at the next
 pet launch and added to the species picker (no rebuild, no export step):
 
+- **Walk cycle (optional)**: add a `"walk"` key — an array of frames, each the
+  same shape as `"rows"` — and the pet uses them while strolling. Packs without
+  it get an automatic two-frame leg shuffle.
 - **Species key = filename stem**: `sprites/example-slime.json` → species
   `example-slime`. If the key matches a built-in (`cat`, `egg`, …), **your pack
   wins** and replaces that sprite.

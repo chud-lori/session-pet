@@ -173,6 +173,8 @@ final class Panel {
     private var emptyLabel: NSTextField?
     var onCardClick: ((SessionInfo) -> Void)?
     private var lastRefresh: ([String: Any], String, [SessionInfo], Int)?
+    let walkCheck = NSButton(checkboxWithTitle: "let the pet wander around",
+                             target: nil, action: nil)
     let soundCheck = NSButton(checkboxWithTitle: "sound when an agent needs me",
                               target: nil, action: nil)
     let settingsBox = NSStackView()
@@ -180,6 +182,7 @@ final class Panel {
     var pickButtons: [String: NSButton] = [:]
     var onPick: ((String) -> Void)?
     var onSound: ((Bool) -> Void)?
+    var onWalk: ((Bool) -> Void)?
 
     init() {
         panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 360, height: 100),
@@ -266,6 +269,10 @@ final class Panel {
         soundCheck.target = self
         soundCheck.action = #selector(soundToggled(_:))
 
+        walkCheck.attributedTitle = Panel.buttonTitle("let the pet wander around")
+        walkCheck.target = self
+        walkCheck.action = #selector(walkToggled(_:))
+
         let quit = NSButton(title: "quit pet", target: NSApp, action: #selector(NSApplication.terminate(_:)))
         quit.bezelStyle = .rounded
         quit.font = NSFont(name: "Menlo", size: 10)
@@ -276,6 +283,7 @@ final class Panel {
         settingsBox.spacing = 6
         settingsBox.addArrangedSubview(grid)
         settingsBox.addArrangedSubview(soundCheck)
+        settingsBox.addArrangedSubview(walkCheck)
         settingsBox.addArrangedSubview(quit)
         settingsBox.isHidden = true
         settingsToggle.isBordered = false
@@ -327,7 +335,8 @@ final class Panel {
         settingsBox.isHidden.toggle()
         settingsToggle.attributedTitle =
             Panel.buttonTitle(settingsBox.isHidden ? "settings ▸" : "settings ▾")
-        panel.setContentSize(panel.contentView!.fittingSize)
+        panel.setContentSize(NSSize(width: 360,
+                            height: panel.contentView!.fittingSize.height))
         fitOnScreen()
     }
 
@@ -348,6 +357,10 @@ final class Panel {
 
     @objc private func soundToggled(_ sender: NSButton) {
         onSound?(sender.state == .on)
+    }
+
+    @objc private func walkToggled(_ sender: NSButton) {
+        onWalk?(sender.state == .on)
     }
 
     func refresh(state: [String: Any], mode: String, sessions: [SessionInfo], nInput: Int) {
@@ -455,11 +468,13 @@ final class Panel {
         sessionHeight.constant = min(contentH, 300)
 
         soundCheck.state = (state["sound"] as? Bool ?? true) ? .on : .off
+        walkCheck.state = (state["walk"] as? Bool ?? true) ? .on : .off
         for (key, b) in pickButtons {
             b.layer?.borderWidth = key == speciesKey ? 2 : 0
             b.layer?.borderColor = cAccent.cgColor
         }
-        panel.setContentSize(panel.contentView!.fittingSize)
+        panel.setContentSize(NSSize(width: 360,
+                            height: panel.contentView!.fittingSize.height))
         if panel.isVisible { fitOnScreen() }
     }
 }

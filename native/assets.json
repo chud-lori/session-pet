@@ -61,6 +61,42 @@
     "..kXXXXXXXXXXk..",
     "..kdXXk..kXXdk..",
     "...kk......kk..."
+   ],
+   "walk": [
+    [
+     "..kk........kk..",
+     ".kXXk......kXXk.",
+     ".kXpXk....kXpXk.",
+     ".kXXXXkkkkXXXXk.",
+     ".kXXXXXXXXXXXXk.",
+     "kXXXXXXXXXXXXXXk",
+     "kXXooXXXXXXooXXk",
+     "kXXowXXXXXXowXXk",
+     "kXXXXXXkppkXXXXk",
+     "kdXXXXXXXXXXXXdk",
+     ".kXXXXXXXXXXXXk.",
+     "..kXXXXXXXXXXk..",
+     "..kXXXXXXXXXXk..",
+     "..kdXXk..kXXdk..",
+     "..kk........kk.."
+    ],
+    [
+     "..kk........kk..",
+     ".kXXk......kXXk.",
+     ".kXpXk....kXpXk.",
+     ".kXXXXkkkkXXXXk.",
+     ".kXXXXXXXXXXXXk.",
+     "kXXXXXXXXXXXXXXk",
+     "kXXooXXXXXXooXXk",
+     "kXXowXXXXXXowXXk",
+     "kXXXXXXkppkXXXXk",
+     "kdXXXXXXXXXXXXdk",
+     ".kXXXXXXXXXXXXk.",
+     "..kXXXXXXXXXXk..",
+     "..kXXXXXXXXXXk..",
+     "..kdXXk..kXXdk..",
+     "....kk....kk...."
+    ]
    ]
   },
   "dragon": {
@@ -91,6 +127,42 @@
     "..kXXbbbbbbXXk..",
     "..kdXXk..kXXdk..",
     "...kk......kk..."
+   ],
+   "walk": [
+    [
+     "..hh........hh..",
+     ".khhk......khhk.",
+     ".kXXk......kXXk.",
+     ".kXXXXkkkkXXXXk.",
+     ".kXXXXXXXXXXXXk.",
+     "kXXXXXXXXXXXXXXk",
+     "kXXooXXXXXXooXXk",
+     "kXXowXXXXXXowXXk",
+     "kXXXXXkddkXXXXXk",
+     "kdXXXXXXXXXXXXdk",
+     ".kXXXbbbbbbXXXk.",
+     "..kXXbbbbbbXXk..",
+     "..kXXbbbbbbXXk..",
+     "..kdXXk..kXXdk..",
+     "..kk........kk.."
+    ],
+    [
+     "..hh........hh..",
+     ".khhk......khhk.",
+     ".kXXk......kXXk.",
+     ".kXXXXkkkkXXXXk.",
+     ".kXXXXXXXXXXXXk.",
+     "kXXXXXXXXXXXXXXk",
+     "kXXooXXXXXXooXXk",
+     "kXXowXXXXXXowXXk",
+     "kXXXXXkddkXXXXXk",
+     "kdXXXXXXXXXXXXdk",
+     ".kXXXbbbbbbXXXk.",
+     "..kXXbbbbbbXXk..",
+     "..kXXbbbbbbXXk..",
+     "..kdXXk..kXXdk..",
+     "....kk....kk...."
+    ]
    ]
   },
   "crab": {
@@ -114,6 +186,32 @@
     ".kXXXXkkkkXXXXk.",
     "..kXXXXXXXXXXk..",
     "...kXk.kk.kXk..."
+   ],
+   "walk": [
+    [
+     ".kk..........kk.",
+     "kXXk........kXXk",
+     "kXXk.kkkkkk.kXXk",
+     ".kkkXXXXXXXXkkk.",
+     "..kXXXXXXXXXXk..",
+     ".kXXooXXXXooXXk.",
+     ".kXXowXXXXowXXk.",
+     ".kXXXXkkkkXXXXk.",
+     "..kXXXXXXXXXXk..",
+     "..kXk...kk.kXk.."
+    ],
+    [
+     ".kk..........kk.",
+     "kXXk........kXXk",
+     "kXXk.kkkkkk.kXXk",
+     ".kkkXXXXXXXXkkk.",
+     "..kXXXXXXXXXXk..",
+     ".kXXooXXXXooXXk.",
+     ".kXXowXXXXowXXk.",
+     ".kXXXXkkkkXXXXk.",
+     "..kXXXXXXXXXXk..",
+     "....kXkk.kXk...."
+    ]
    ]
   },
   "octopus": {
@@ -137,6 +235,32 @@
     ".kXXXXXXXXXXXXk.",
     ".kXkXXkXXkXXkXk.",
     ".kk.kk.kk.kk.kk."
+   ],
+   "walk": [
+    [
+     "....kkkkkkkk....",
+     "..kkXXXXXXXXkk..",
+     ".kXXXXXXXXXXXXk.",
+     "kXXXXXXXXXXXXXXk",
+     "kXooXXXXXXXXooXk",
+     "kXowXXXXXXXXowXk",
+     "kXXXXXkkkkXXXXXk",
+     ".kXXXXXXXXXXXXk.",
+     ".kXkXXkXXkXXkXk.",
+     "kk.kk...kk.kk.kk"
+    ],
+    [
+     "....kkkkkkkk....",
+     "..kkXXXXXXXXkk..",
+     ".kXXXXXXXXXXXXk.",
+     "kXXXXXXXXXXXXXXk",
+     "kXooXXXXXXXXooXk",
+     "kXowXXXXXXXXowXk",
+     "kXXXXXkkkkXXXXXk",
+     ".kXXXXXXXXXXXXk.",
+     ".kXkXXkXXkXXkXk.",
+     "..kk.kkk.kk.kk.."
+    ]
    ]
   },
   "dino": {
@@ -166,6 +290,40 @@
     "..kXXWWWWWWXXkk.",
     "..kdXXk..kXXdkXk",
     "...kk......kk..."
+   ],
+   "walk": [
+    [
+     ".....ss..ss.....",
+     "....kXXkkXXk....",
+     "...kXXXXXXXXk...",
+     "..kXXXXXXXXXXk..",
+     ".kXXXXXXXXXXXXk.",
+     "kXXooXXXXXXooXXk",
+     "kXXowXXXXXXowXXk",
+     "kXXXXXkkkkXXXXXk",
+     ".kXXXXXXXXXXXXk.",
+     "..kXXWWWWWWXXk..",
+     "..kXXWWWWWWXXk..",
+     "..kXXWWWWWWXXkk.",
+     "..kdXXk..kXXdkXk",
+     "..kk........kk.."
+    ],
+    [
+     ".....ss..ss.....",
+     "....kXXkkXXk....",
+     "...kXXXXXXXXk...",
+     "..kXXXXXXXXXXk..",
+     ".kXXXXXXXXXXXXk.",
+     "kXXooXXXXXXooXXk",
+     "kXXowXXXXXXowXXk",
+     "kXXXXXkkkkXXXXXk",
+     ".kXXXXXXXXXXXXk.",
+     "..kXXWWWWWWXXk..",
+     "..kXXWWWWWWXXk..",
+     "..kXXWWWWWWXXkk.",
+     "..kdXXk..kXXdkXk",
+     "....kk....kk...."
+    ]
    ]
   },
   "fox": {
@@ -196,6 +354,42 @@
     "..kXXWWWWWWXXk..",
     "..kdXXk..kXXdk..",
     "...kk......kk..."
+   ],
+   "walk": [
+    [
+     "..kk........kk..",
+     ".kXXk......kXXk.",
+     ".kXWXk....kXWXk.",
+     ".kXXXXkkkkXXXXk.",
+     ".kXXXXXXXXXXXXk.",
+     "kXXXXXXXXXXXXXXk",
+     "kXXooXXXXXXooXXk",
+     "kXXowXXXXXXowXXk",
+     "kWWXXXXkppkXXWWk",
+     "kdWXXXXXXXXXXWdk",
+     ".kXXXXXXXXXXXXk.",
+     "..kXXWWWWWWXXk..",
+     "..kXXWWWWWWXXk..",
+     "..kdXXk..kXXdk..",
+     "..kk........kk.."
+    ],
+    [
+     "..kk........kk..",
+     ".kXXk......kXXk.",
+     ".kXWXk....kXWXk.",
+     ".kXXXXkkkkXXXXk.",
+     ".kXXXXXXXXXXXXk.",
+     "kXXXXXXXXXXXXXXk",
+     "kXXooXXXXXXooXXk",
+     "kXXowXXXXXXowXXk",
+     "kWWXXXXkppkXXWWk",
+     "kdWXXXXXXXXXXWdk",
+     ".kXXXXXXXXXXXXk.",
+     "..kXXWWWWWWXXk..",
+     "..kXXWWWWWWXXk..",
+     "..kdXXk..kXXdk..",
+     "....kk....kk...."
+    ]
    ]
   },
   "alien": {
@@ -223,6 +417,38 @@
     "...kXXXXXXXXk...",
     "...kXXk..kXXk...",
     "....kk....kk...."
+   ],
+   "walk": [
+    [
+     ".khk........khk.",
+     "...k........k...",
+     "..kkXXXXXXXXkk..",
+     ".kXXXXXXXXXXXXk.",
+     "kXXXXXXXXXXXXXXk",
+     "kXoooXXXXXXoooXk",
+     "kXooowXXXXooowXk",
+     ".kXXXXXXXXXXXXk.",
+     ".kXXXXkkkkXXXXk.",
+     "..kXXXXXXXXXXk..",
+     "...kXXXXXXXXk...",
+     "...kXXk..kXXk...",
+     "...kk......kk..."
+    ],
+    [
+     ".khk........khk.",
+     "...k........k...",
+     "..kkXXXXXXXXkk..",
+     ".kXXXXXXXXXXXXk.",
+     "kXXXXXXXXXXXXXXk",
+     "kXoooXXXXXXoooXk",
+     "kXooowXXXXooowXk",
+     ".kXXXXXXXXXXXXk.",
+     ".kXXXXkkkkXXXXk.",
+     "..kXXXXXXXXXXk..",
+     "...kXXXXXXXXk...",
+     "...kXXk..kXXk...",
+     ".....kk..kk....."
+    ]
    ]
   },
   "turtle": {
@@ -251,6 +477,38 @@
     "..kkkkkkkkkkkk..",
     "..kXXk....kXXk..",
     "...kk......kk..."
+   ],
+   "walk": [
+    [
+     "....kkkkkkkk....",
+     "...kXXXXXXXXk...",
+     "..kXXXXXXXXXXk..",
+     "..kXooXXXXooXk..",
+     "..kXowXXXXowXk..",
+     "..kXXXkkkkXXXk..",
+     ".kSSSSSSSSSSSSk.",
+     "kSSDSSDSSDSSDSSk",
+     "kSSSSSSSSSSSSSSk",
+     ".kSDSSDSSDSSDSk.",
+     "..kkkkkkkkkkkk..",
+     "..kXXk....kXXk..",
+     "..kk........kk.."
+    ],
+    [
+     "....kkkkkkkk....",
+     "...kXXXXXXXXk...",
+     "..kXXXXXXXXXXk..",
+     "..kXooXXXXooXk..",
+     "..kXowXXXXowXk..",
+     "..kXXXkkkkXXXk..",
+     ".kSSSSSSSSSSSSk.",
+     "kSSDSSDSSDSSDSSk",
+     "kSSSSSSSSSSSSSSk",
+     ".kSDSSDSSDSSDSk.",
+     "..kkkkkkkkkkkk..",
+     "..kXXk....kXXk..",
+     "....kk....kk...."
+    ]
    ]
   }
  }

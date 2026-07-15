@@ -71,6 +71,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             var st = loadState(); st["sound"] = on; saveState(st)
             self?.view.state = st
         }
+        petPanel.onWalk = { [weak self] on in
+            var st = loadState(); st["walk"] = on; saveState(st)
+            self?.view.state = st
+        }
         view.onToggleSound = { [weak self] in
             var st = loadState()
             st["sound"] = !(st["sound"] as? Bool ?? true)
@@ -258,8 +262,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             view.state = loadState()
             if petPanel.panel.isVisible { refreshPanel() }
         }
+        updateWalk()
         view.frameCount += 1
         view.needsDisplay = true
+    }
+
+    // wandering: occasionally amble a short distance along the screen, little
+    // steps + facing flip — in ANY mode (vscode-pets style), slightly less
+    // often while working. Stays put only when something needs attention,
+    // the panel is open, or the mouse is down (drag/click in progress).
+    var walkTarget: CGFloat? = nil
+    func updateWalk() {
+        guard view.state["walk"] as? Bool ?? true,  // settings toggle
+              !petPanel.panel.isVisible,
+              !view.needsAttention,
+              NSEvent.pressedMouseButtons == 0 else {
+            walkTarget = nil
+            view.walking = false
+            return
+        }
+        let x = window.frame.origin.x
+        if let t = walkTarget {
+            let step: CGFloat = 4
+            if abs(t - x) <= step {
+                walkTarget = nil
+                view.walking = false
+            } else {
+                let dir: CGFloat = t > x ? 1 : -1
+                view.facing = dir
+                view.walking = true
+                window.setFrameOrigin(NSPoint(x: x + dir * step,
+                                              y: window.frame.origin.y))
+            }
+        } else if Int.random(in: 0..<(view.mode == "working" ? 64 : 32)) == 0 {
+            // ~every 8s idle, ~16s while agents work
+            if let vis = (window.screen ?? NSScreen.main)?.visibleFrame {
+                let minX = vis.minX + 10
+                let maxX = vis.maxX - window.frame.width - 10
+                let t = max(minX, min(maxX, x + CGFloat.random(in: -280...280)))
+                if abs(t - x) > 50 { walkTarget = t }
+            }
+        }
     }
 
     func playSound(_ kind: SoundKind, state: [String: Any], now: Double) {
