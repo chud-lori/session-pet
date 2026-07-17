@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow!
     var view: PetView!
     var petPanel = Panel()
-    var lastPoll = 0.0, lastSound = 0.0, lastPing = 0.0
+    var lastPoll = 0.0, lastSound = 0.0, lastPing = 0.0, lastPsScan = 0.0
     var realerts: [String: (key: String, count: Int, lastAt: Double)] = [:]
     var evOffset: UInt64 = 0, evPrimed = false
     var notif: [String: (Double, String)] = [:]
@@ -99,8 +99,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
             self?.tick()
         }
+        timer.tolerance = 0.05
         RunLoop.main.add(timer, forMode: .common)
+
+        // App Nap throttles background-app timers (worse on battery) — the
+        // animation stutters and alert detection lags. Declare ourselves
+        // latency-critical; allowingIdleSystemSleep so we never block sleep.
+        napActivity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
+            reason: "session-pet animation + session monitoring")
     }
+
+    var napActivity: NSObjectProtocol?
 
     func clampToScreen() {
         guard let screen = window.screen ?? NSScreen.main else { return }
@@ -195,6 +205,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let now = Date().timeIntervalSince1970
         if now - lastPoll > 1.0 {
             lastPoll = now
+            if now - lastPsScan > 15 {  // open-session process scan, cheap but not 1Hz-cheap
+                lastPsScan = now
+                refreshOpenSessions()
+            }
             readEvents()
             var sessions = scanSessions()
             for (i, s) in sessions.enumerated() {
@@ -219,12 +233,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 if ph == "input" && prev != nil && prev != "input" {
                     view.alertUntil = now + 5
+                    view.exciteUntil = now + 3  // visible even when muted
                     playSound(.input, state: state, now: now)
                 } else if (prev == "working" || prev == "busy" || prev == "stalled")
                             && ph == "ready" {
                     // stalled counts too: a long-silent session that finally
                     // finishes must still ding and bank XP
                     view.alertUntil = now + 5
+                    view.exciteUntil = now + 3  // visible even when muted
                     playSound(.ready, state: state, now: now)
                     var bank = state["sessions"] as? [String: Any] ?? [:]
                     bank["window"] = ((bank["window"] as? NSNumber)?.intValue ?? 0) + 5
@@ -243,6 +259,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if r.count < 3, now - r.lastAt > 45 {
                     r.count += 1; r.lastAt = now
                     view.alertUntil = now + 5
+                    view.exciteUntil = now + 3  // visible even when muted
                     lastPing = 0  // re-alert bypasses the debounce window
                     playSound(.input, state: state, now: now)
                 }

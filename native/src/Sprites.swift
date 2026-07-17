@@ -76,24 +76,32 @@ func drawSprite(_ key: String, scale: CGFloat, at origin: NSPoint, eyesClosed: B
     }
     let rowCount = rows.count
     let colCount = rows.first?.count ?? 16
+    // snap every cell edge to whole pixels: bob/hop offsets are fractional,
+    // and unsnapped rects antialias into hairline seams between rows —
+    // visible as "stripes" on 1x external monitors. Adjacent cells share the
+    // exact same rounded edge, so no gaps and no overlaps by construction.
+    var xs = [CGFloat](); xs.reserveCapacity(colCount + 3)
+    var ys = [CGFloat](); ys.reserveCapacity(rowCount + 1)
+    for i in -1...(colCount + 1) { xs.append((origin.x + CGFloat(i) * scale).rounded()) }
+    for j in 0...rowCount { ys.append((origin.y + CGFloat(j) * scale).rounded()) }
     for (y, row) in rows.enumerated() {
         // scissor the feet: last row steps one way, the row above the other
         var stepX = 0
         if shuffle != 0, y >= rowCount - 2 {
             stepX = (y == rowCount - 1 ? shuffle : -shuffle)
         }
+        let ry = rowCount - 1 - y  // flip y: pixel row 0 is the TOP
         for (x, ch) in row.enumerated() {
             var c = String(ch)
             if c == "." { continue }
             if eyesClosed && (c == "o" || c == "w") { c = "X" }
             guard let color = sp.palette[c] else { continue }
             color.setFill()
-            // flip y: pixel row 0 is the TOP of the sprite; mirror x when
-            // the pet walks left
-            let px = (mirrored ? colCount - 1 - x : x) + (mirrored ? -stepX : stepX)
-            NSRect(x: origin.x + CGFloat(px) * scale,
-                   y: origin.y + CGFloat(rowCount - 1 - y) * scale,
-                   width: scale, height: scale).fill()
+            // mirror x when the pet walks left; +1 offsets into xs, which
+            // starts one cell early so the walk shuffle can step past an edge
+            let px = (mirrored ? colCount - 1 - x : x) + (mirrored ? -stepX : stepX) + 1
+            NSRect(x: xs[px], y: ys[ry],
+                   width: xs[px + 1] - xs[px], height: ys[ry + 1] - ys[ry]).fill()
         }
     }
 }

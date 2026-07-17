@@ -12,6 +12,7 @@ import AppKit
 
 // test floor: print one JSON line per session and exit — no window, no timer
 if CommandLine.arguments.contains("--scan-once") {
+    refreshOpenSessions()  // open `claude --resume` processes count as sessions
     for s in scanSessions() {
         let obj: [String: Any] = ["path": s.path, "phase": s.phase,
                                   "doing": s.doing, "label": s.label]

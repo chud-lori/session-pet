@@ -11,6 +11,7 @@ final class PetView: NSView {
     var sessions: [SessionInfo] = []
     var state: [String: Any] = loadState()
     var alertUntil = 0.0
+    var exciteUntil = 0.0      // excited-hop burst window (muted-friendly alert)
     var needsAttention = false // any unacked ready/input/stalled session
     var onClick: (() -> Void)?
     var onToggleSound: (() -> Void)?
@@ -76,9 +77,30 @@ final class PetView: NSView {
         let spriteKey = hatched ? speciesKey : "egg"
         let sp = assets.species[spriteKey] ?? assets.species["cat"]!
 
-        // walking uses the fast bob (little steps); otherwise pace by mood
-        let bobPeriod = (walking || mode == "working") ? 2 : (mode == "waiting" ? 6 : 10)
-        let bob = CGFloat((frameCount / bobPeriod) % 2) * (s / 2)
+        // QUIET BASELINE, LOUD ALERT: constant bobbing trained the eye to
+        // ignore vertical motion, so alerts drowned in it. Now only working/
+        // walking bounce; waiting/sleeping sit still except a tiny "breath"
+        // every ~4s — making any alert motion unmistakable by contrast.
+        let bob: CGFloat
+        if walking || mode == "working" {
+            bob = CGFloat((frameCount / 2) % 2) * (s / 2)
+        } else {
+            bob = frameCount % 16 == 0 ? s / 4 : 0  // single subtle breath
+        }
+        // alert = a DIFFERENT motion, not a bigger bob: hops combined with a
+        // rapid left-right wiggle (the pet never wiggles otherwise); while
+        // unacknowledged, a reminder hop fires every ~12s against stillness.
+        var hop: CGFloat = 0
+        var wiggle = false
+        let nowT = Date().timeIntervalSince1970
+        if nowT < exciteUntil {
+            let phase = CGFloat((nowT * 2).truncatingRemainder(dividingBy: 1))
+            hop = abs(sin(phase * .pi)) * 2.2 * s
+            wiggle = Int(nowT * 6) % 2 == 0  // 3 flips/sec — unmistakable
+        } else if needsAttention, frameCount % 48 < 6 {
+            let phase = CGFloat(frameCount % 48) / 6
+            hop = abs(sin(phase * .pi)) * 1.2 * s
+        }
         let spriteW = CGFloat(sp.rows.first?.count ?? 16) * s
         let ox = (bounds.width - spriteW) / 2
         let baseY = 3.5 * s // above caption + dots
@@ -89,8 +111,8 @@ final class PetView: NSView {
                                     width: 14 * s, height: 1.6 * s)).fill()
 
         let blink = mode == "sleeping" || frameCount % 16 == 0
-        drawSprite(spriteKey, scale: s, at: NSPoint(x: ox, y: baseY + bob),
-                   eyesClosed: blink, mirrored: facing < 0,
+        drawSprite(spriteKey, scale: s, at: NSPoint(x: ox, y: baseY + bob + hop),
+                   eyesClosed: blink, mirrored: (facing < 0) != wiggle,
                    walkFrame: walking ? frameCount / 2 : nil)
 
         // effects
@@ -154,16 +176,32 @@ final class PetView: NSView {
         let name = hatched ? (state["name"] as? String ?? sp.name) : "???"
         let crown = stage == "legendary" ? "👑" : ""
         let caption = "\(crown)\(name) · Lv.\(level)" as NSString
-        let capFont = NSFont(name: "Menlo-Bold", size: s + 6) ?? .boldSystemFont(ofSize: s + 6)
-        let attrs: [NSAttributedString.Key: Any] = [.font: capFont, .foregroundColor: cFG]
-        let sz = caption.size(withAttributes: attrs)
+        // shrink-to-fit: "👑Ember · Lv.16" outgrew the window at full size —
+        // step the font down until the plate fits inside the canvas
+        var capSize = s + 6
+        var attrs: [NSAttributedString.Key: Any] = [:]
+        var sz = NSSize.zero
+        while capSize >= 8 {
+            let f = NSFont(name: "Menlo-Bold", size: capSize) ?? .boldSystemFont(ofSize: capSize)
+            attrs = [.font: f, .foregroundColor: cFG]
+            sz = caption.size(withAttributes: attrs)
+            if sz.width + 16 <= bounds.width { break }
+            capSize -= 1
+        }
         // name plate: rounded dark pill keeps the caption readable on ANY
-        // background (stroked text looked ragged over white windows)
+        // background (stroked text looked ragged over white windows).
+        // During an alert burst it FLASHES yellow — luminance change is the
+        // strongest peripheral-vision trigger there is.
+        let flashing = nowT < exciteUntil && frameCount % 2 == 0
         let pad: CGFloat = 6
         let plate = NSRect(x: (bounds.width - sz.width) / 2 - pad, y: 0.2 * s - 2,
                            width: sz.width + 2 * pad, height: sz.height + 4)
-        NSColor(red: 0.09, green: 0.09, blue: 0.12, alpha: 0.82).setFill()
+        (flashing ? cWarn.withAlphaComponent(0.95)
+                  : NSColor(red: 0.09, green: 0.09, blue: 0.12, alpha: 0.82)).setFill()
         NSBezierPath(roundedRect: plate, xRadius: 7, yRadius: 7).fill()
+        if flashing {
+            attrs[.foregroundColor] = NSColor(red: 0.09, green: 0.09, blue: 0.12, alpha: 1)
+        }
         caption.draw(at: NSPoint(x: (bounds.width - sz.width) / 2, y: 0.2 * s),
                      withAttributes: attrs)
     }

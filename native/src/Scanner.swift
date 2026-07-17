@@ -44,6 +44,57 @@ func tailLines(_ path: String, want: UInt64 = 65536) -> [String] {
     return lines
 }
 
+// MARK: - open-session detection
+// A quiet transcript can't distinguish "terminal still open" from "closed" —
+// but the process list can: open sessions run as `claude --resume <id-or-name>`.
+// Refreshed by the app every ~15s; matched against transcript filename stems
+// and rename names (agent-name / custom-title).
+var openSessionIDs: Set<String> = []
+
+func refreshOpenSessions() {
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: "/bin/ps")
+    p.arguments = ["-axo", "command="]
+    let pipe = Pipe()
+    p.standardOutput = pipe
+    p.standardError = FileHandle.nullDevice
+    guard (try? p.run()) != nil else { return }
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    p.waitUntilExit()
+    var ids: Set<String> = []
+    for line in String(decoding: data, as: UTF8.self).split(separator: "\n") {
+        let parts = line.split(separator: " ").map(String.init)
+        guard let first = parts.first,
+              (first as NSString).lastPathComponent == "claude" else { continue }
+        if let i = parts.firstIndex(of: "--resume"), i + 1 < parts.count {
+            ids.insert(parts[i + 1])
+        }
+    }
+    openSessionIDs = ids
+}
+
+// the session's START directory = the cwd on the earliest events; immutable,
+// so cached forever per path ("" caches a miss)
+var startCwdCache: [String: String] = [:]
+func claudeStartCwd(_ path: String) -> String? {
+    if let c = startCwdCache[path] { return c.isEmpty ? nil : c }
+    var found = ""
+    if let fh = FileHandle(forReadingAtPath: path) {
+        defer { try? fh.close() }
+        if let head = try? fh.read(upToCount: 16384),
+           case let text = String(decoding: head, as: UTF8.self) {
+            for line in text.split(separator: "\n").prefix(25) {
+                if let ev = json(Data(line.utf8)), let c = ev["cwd"] as? String {
+                    found = c
+                    break
+                }
+            }
+        }
+    }
+    startCwdCache[path] = found
+    return found.isEmpty ? nil : found
+}
+
 private let isoFrac: ISO8601DateFormatter = {
     let f = ISO8601DateFormatter()
     f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -316,13 +367,36 @@ func scanSessions() -> [SessionInfo] {
                   let mdate = attrs[.modificationDate] as? Date else { continue }
             let mtime = mdate.timeIntervalSince1970
             let age = now - mtime
-            if age > recentWindow { continue }
+            // quiet-but-OPEN sessions (running `claude --resume …` process)
+            // stay listed no matter how old; everything else ages out at
+            // recentWindow. 48h hard cap keeps the parse set bounded.
+            if age > 172_800 { continue }
             let info: TailInfo
             if let cached = stopCache[path], cached.0 == mtime {
                 info = cached.1
             } else {
                 info = tailer(path)
                 stopCache[path] = (mtime, info)
+            }
+            if age > recentWindow {
+                let stem = ((path as NSString).lastPathComponent as NSString)
+                    .deletingPathExtension
+                let isOpen = openSessionIDs.contains(stem)
+                    || info.agentName.map(openSessionIDs.contains) ?? false
+                    || info.customTitle.map(openSessionIDs.contains) ?? false
+                guard isOpen else { continue }
+                let label = info.customTitle ?? info.title
+                    ?? info.cwd.map(tildify) ?? projectLabel(path, provider)
+                let cwd = (provider == "claude" ? claudeStartCwd(path) : nil) ?? info.cwd
+                var project = info.agentName
+                    ?? ((cwd ?? label) as NSString).lastPathComponent
+                if project.isEmpty || project == "~" { project = provider }
+                out.append(SessionInfo(path: path, age: age, phase: "idle",
+                                       doing: "open — quiet \(fmtAge(age))",
+                                       provider: provider, ctx: info.ctx,
+                                       snippet: info.snippet, label: label,
+                                       cwd: cwd.map(tildify), project: project))
+                continue
             }
             var phase = "", doing = ""
             if info.stop == "tool_use", let tool = info.tool, inputTools.contains(tool), age > 3 {
@@ -407,9 +481,14 @@ func scanSessions() -> [SessionInfo] {
             }
             // cwd: real event cwd when present, else the decoded projectLabel
             // path (display-only — may be tildified); project badge = its last
-            // path component (badge pill ellipsizes long names)
+            // path component (badge pill ellipsizes long names).
+            // Session START dir, not current dir: events carry the cwd at
+            // event time, and a session that cd's into a subproject would
+            // otherwise re-badge itself mid-run (Lori's rule: dir where the
+            // session was spawned).
             let fallback = projectLabel(path, provider)
-            let cwd = info.cwd
+            let startCwd = provider == "claude" ? claudeStartCwd(path) : nil
+            let cwd = startCwd ?? info.cwd
                 ?? ((fallback.hasPrefix("~") || fallback.hasPrefix("/")) ? fallback : nil)
             // badge: the user's rename (agent-name) wins; else dir name
             var project = info.agentName

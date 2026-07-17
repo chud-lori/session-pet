@@ -47,8 +47,12 @@ settings ▸ "let the pet wander around". Wherever you drag it or it walks to
 is its new home. **Sounds:** a quiet
 *Glass* when a turn finishes; a louder **double *Ping*** when an agent needs
 your input — repeating every 45s (max 3×) until you acknowledge it, so you
-won't miss it while watching a video. **Dots under the pet** (2+ sessions):
-green = working, yellow = finished, blinking red = needs you.
+won't miss it while watching a video. **Muted?** The pet also *jumps
+excitedly* when a session finishes or needs you, and keeps doing a small
+reminder hop every ~12s (plus the "!" badge) until you acknowledge it — motion
+catches the corner of your eye even with the volume off. **Dots under the
+pet** (2+ sessions): green = working, yellow = finished, blinking red = needs
+you.
 
 > Maintainers: the docs page is served from `docs/` — enable it once via
 > GitHub **Settings → Pages → Deploy from a branch → `main` / `/docs`**.
