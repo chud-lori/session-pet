@@ -37,7 +37,7 @@ jobs:
       - name: Build
         run: cargo build --release --manifest-path linux/face/Cargo.toml
       - name: Rename asset
-        run: cp linux/face/target/release/session-pet-linux
+        run: cp linux/face/target/release/session-pet
           session-pet-linux-${{ matrix.arch }}
       - name: Upload to release
         uses: softprops/action-gh-release@v2

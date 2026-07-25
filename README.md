@@ -14,7 +14,14 @@ same `.state/state.json`. No Electron, no dependencies.
 
 ## Quick install
 
-**macOS** (macOS 13+, Command Line Tools, python3):
+One installer, both OSes. No clone (downloads a prebuilt from releases):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh
+```
+
+Append `-s -- --login-item` to start at every login. From a clone it builds
+from source instead:
 
 ```bash
 git clone https://github.com/chud-lori/session-pet.git
@@ -22,20 +29,11 @@ cd session-pet
 ./install.sh --login-item   # build + run + start at every login
 ```
 
-**Linux** (python3 + the GTK3 runtime any GNOME/KDE/XFCE desktop already
-has) — no clone needed, downloads a prebuilt binary:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/linux/install.sh | sh
-```
-
-Append `-s -- --autostart` to start at every login. From a clone,
-`./install.sh` works on both OSes (it auto-builds from source on Linux when
-`cargo` is available; flags: `--download`, `--from-source`, `--layer-shell`,
-`--version vX.Y.Z`). `./install.sh --uninstall` removes it on either OS.
-Prebuilt macOS users: grab `session-pet-macos.tar.gz` from
-[releases](https://github.com/chud-lori/session-pet/releases), extract, run
-`./session-pet/native/SessionPet`.
+`./install.sh --uninstall` removes it on either OS. Requirements: `python3`;
+clone builds also need `swiftc` (macOS 13+, Command Line Tools) or `cargo` +
+`libgtk-3-dev` (Linux). Prebuilt Linux binaries only need the GTK3 runtime
+any GNOME/KDE/XFCE desktop already has. Linux-only flags: `--download`,
+`--from-source`, `--layer-shell`, `--version vX.Y.Z`.
 
 ## Using the pet
 
@@ -121,7 +119,7 @@ and assets, so it runs without a clone (state under
   surfaces).
 - **Pure Wayland on GNOME:** GNOME has no layer-shell and Wayland forbids
   app-side always-on-top — run under XWayland: `GDK_BACKEND=x11
-  session-pet-linux` (the default install does this automatically).
+  session-pet` (the default install does this automatically).
 
 Hacking:
 
