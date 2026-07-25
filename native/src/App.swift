@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var view: PetView!
     var petPanel = Panel()
     var lastPoll = 0.0, lastSound = 0.0, lastPing = 0.0, lastPsScan = 0.0
+    var hiddenUntil = 0.0  // movie mode: window hidden until then (or input alert)
     var realerts: [String: (key: String, count: Int, lastAt: Double)] = [:]
     var evOffset: UInt64 = 0, evPrimed = false
     var notif: [String: (Double, String)] = [:]
@@ -80,6 +81,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             st["sound"] = !(st["sound"] as? Bool ?? true)
             saveState(st)
             self?.view.state = st
+        }
+        view.onHide = { [weak self] in
+            guard let self else { return }
+            // movie mode: invisible for 30 min; sounds keep working, and a
+            // needs-input alert brings the pet back early (see tick)
+            self.hiddenUntil = Date().timeIntervalSince1970 + 1800
+            self.petPanel.panel.orderOut(nil)
+            self.window.orderOut(nil)
         }
 
         // displays changed (unplugged, resolution switch) — keep the pet visible
@@ -205,6 +214,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let now = Date().timeIntervalSince1970
         if now - lastPoll > 1.0 {
             lastPoll = now
+            if hiddenUntil > 0, now > hiddenUntil {  // movie mode expired
+                hiddenUntil = 0
+                window.orderFront(nil)
+                clampToScreen()
+            }
             if now - lastPsScan > 15 {  // open-session process scan, cheap but not 1Hz-cheap
                 lastPsScan = now
                 refreshOpenSessions()
@@ -232,6 +246,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     petLog("\((path as NSString).lastPathComponent) \(prev ?? "-")->\(ph)")
                 }
                 if ph == "input" && prev != nil && prev != "input" {
+                    if hiddenUntil > now {  // needs-input overrides movie mode
+                        hiddenUntil = 0
+                        window.orderFront(nil)
+                        clampToScreen()
+                    }
                     view.alertUntil = now + 5
                     view.exciteUntil = now + 3  // visible even when muted
                     playSound(.input, state: state, now: now)

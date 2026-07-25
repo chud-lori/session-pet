@@ -27,7 +27,8 @@ cd session-pet
 | Open the session panel | **click** the pet |
 | Close the panel | click the pet again, or click anywhere outside |
 | Move the pet | **drag** it |
-| Menu (panel / sound / quit) | **right-click** the pet |
+| Menu (panel / sound / hide / quit) | **right-click** the pet |
+| Watch a movie in peace | right-click → **Hide 30 min** — sounds keep working, and the pet returns early only if an agent needs your input |
 | Acknowledge a finished/needs-input session | click its card in the panel |
 | Expand a session card (path, tokens, last message) | click the card |
 | Change species / toggle sound / toggle wandering | panel → **settings ▸** |

@@ -15,6 +15,7 @@ final class PetView: NSView {
     var needsAttention = false // any unacked ready/input/stalled session
     var onClick: (() -> Void)?
     var onToggleSound: (() -> Void)?
+    var onHide: (() -> Void)?
     private var dragOffset: NSPoint?
     private var dragged = false
 
@@ -55,6 +56,10 @@ final class PetView: NSView {
         sound.target = self
         sound.state = (state["sound"] as? Bool ?? true) ? .on : .off
         menu.addItem(sound)
+        let hide = NSMenuItem(title: "Hide 30 min (returns if an agent needs you)",
+                              action: #selector(menuHide(_:)), keyEquivalent: "")
+        hide.target = self
+        menu.addItem(hide)
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit pet",
                               action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
@@ -65,6 +70,7 @@ final class PetView: NSView {
 
     @objc private func menuOpenPanel(_ sender: Any?) { onClick?() }
     @objc private func menuToggleSound(_ sender: Any?) { onToggleSound?() }
+    @objc private func menuHide(_ sender: Any?) { onHide?() }
 
     override func draw(_ dirtyRect: NSRect) {
         let s = scale
