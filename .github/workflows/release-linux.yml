@@ -1,0 +1,40 @@
+# Prebuilt Linux binaries on every v* tag — same conventions as tangi:
+# assets named <bin>-<arch>, downloadable via releases/latest/download/.
+#
+# Release binaries are built WITHOUT the layer-shell feature on purpose: the
+# only runtime deps stay python3 + the GTK3 runtime every desktop already
+# ships. Wayland layer-shell users build from source with --layer-shell.
+name: release-linux
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GTK3 dev headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgtk-3-dev
+      - name: Build
+        run: cargo build --release --manifest-path linux/face/Cargo.toml
+      - name: Rename asset
+        run: cp linux/face/target/release/session-pet-linux
+          session-pet-linux-${{ matrix.arch }}
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: session-pet-linux-${{ matrix.arch }}
