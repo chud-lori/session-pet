@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
-# session-pet installer — build the native pet and (optionally) start it at login.
+# session-pet installer — one tool, macOS + Linux, one entry point.
 #
+# From a clone:
 #   ./install.sh                 build + run now
-#   ./install.sh --login-item    build + install a LaunchAgent (starts at every
-#                                login, incl. after reboot) + run now
-#   ./install.sh --uninstall     remove the LaunchAgent and stop the pet
+#   ./install.sh --login-item    + start at every login (LaunchAgent / XDG)
+#   ./install.sh --uninstall     stop the pet, remove the login entry
 #
-# Requirements: macOS 13+, Xcode Command Line Tools (swiftc), python3.
+# Without a clone (either OS — downloads a prebuilt from GitHub Releases):
+#   curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh
+#   (flags via: ... | sh -s -- --login-item)
+#
+# Requirements: python3. Clone builds also need swiftc (macOS) / cargo (Linux).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+REPO="chud-lori/session-pet"
 
-# Linux: delegate to the Linux installer (Rust face + Python core).
+# Linux: hand over to the Linux half (Rust face + Python core, same flags).
 # --login-item is the mac spelling; map it to the XDG equivalent.
 if [[ "$(uname -s)" == "Linux" ]]; then
   args=()
@@ -18,11 +23,13 @@ if [[ "$(uname -s)" == "Linux" ]]; then
     [[ "$a" == "--login-item" ]] && a="--autostart"
     args+=("$a")
   done
-  exec "$ROOT/linux/install.sh" ${args[@]+"${args[@]}"}
+  if [[ -f "$ROOT/linux/install.sh" ]]; then
+    exec "$ROOT/linux/install.sh" ${args[@]+"${args[@]}"}
+  fi
+  # curl | sh outside a clone: fetch the Linux installer and continue there
+  exec sh -c 'curl -fsSL "https://raw.githubusercontent.com/'"$REPO"'/main/linux/install.sh" | sh -s -- "$@"' sh ${args[@]+"${args[@]}"}
 fi
 PLIST="$HOME/Library/LaunchAgents/com.session-pet.plist"
-BIN="$ROOT/native/SessionPet"
-mkdir -p "$ROOT/.state"   # fresh clones ship without it; the pet/hook need it
 
 if [[ "${1:-}" == "--uninstall" ]]; then
   launchctl unload "$PLIST" 2>/dev/null || true
@@ -32,11 +39,25 @@ if [[ "${1:-}" == "--uninstall" ]]; then
   exit 0
 fi
 
-echo "▸ exporting sprite assets"
-python3 "$ROOT/native/export_assets.py"
+if [[ -d "$ROOT/native/src" ]]; then
+  BIN="$ROOT/native/SessionPet"
+  mkdir -p "$ROOT/.state"  # fresh clones ship without it; the pet/hook need it
 
-echo "▸ building native pet"
-swiftc -O "$ROOT"/native/src/*.swift -o "$BIN"
+  echo "▸ exporting sprite assets"
+  python3 "$ROOT/native/export_assets.py"
+
+  echo "▸ building native pet"
+  swiftc -O "$ROOT"/native/src/*.swift -o "$BIN"
+else
+  # curl | sh without a clone: prebuilt universal binary + assets tarball,
+  # unpacked to the same layout the app expects (state lives inside it)
+  ROOT="$HOME/.local/share/session-pet"
+  BIN="$ROOT/native/SessionPet"
+  echo "▸ downloading prebuilt universal binary"
+  mkdir -p "$ROOT/.state"
+  curl -fSL "https://github.com/$REPO/releases/latest/download/session-pet-macos.tar.gz" \
+    | tar -xz -C "$ROOT" --strip-components 1
+fi
 
 if [[ "${1:-}" == "--login-item" ]]; then
   echo "▸ installing LaunchAgent (starts at login)"

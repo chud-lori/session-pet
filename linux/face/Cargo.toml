@@ -5,8 +5,10 @@ edition = "2021"
 description = "session-pet Linux face — native GTK renderer for the Python core"
 license = "MIT"
 
+# One tool, one name: the installed binary is `session-pet` on Linux, just
+# as the app is SessionPet on macOS. Release assets add -linux-<arch>.
 [[bin]]
-name = "session-pet-linux"
+name = "session-pet"
 path = "src/main.rs"
 
 [dependencies]

@@ -5,8 +5,9 @@
 #   ./linux/install.sh                    build from source + run now
 #   ./linux/install.sh --autostart        + start at every login (XDG autostart)
 #
-# Without a clone (one-liner):
-#   curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/linux/install.sh | sh
+# Without a clone, use the root installer — it works for BOTH OSes and lands
+# here on Linux:
+#   curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh
 #   (flags via: ... | sh -s -- --autostart)
 #
 # Flags:
@@ -22,7 +23,8 @@
 set -eu
 
 REPO="chud-lori/session-pet"
-BIN_NAME="session-pet-linux"
+BIN_NAME="session-pet"
+ASSET_PREFIX="session-pet-linux"
 BIN_DIR="${HOME}/.local/bin"
 BIN="${BIN_DIR}/${BIN_NAME}"
 AUTOSTART_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
@@ -77,8 +79,8 @@ if [ "$MODE" = source ]; then
 else
   ARCH="$(uname -m)"
   case "$ARCH" in
-    x86_64)         ASSET="${BIN_NAME}-x86_64" ;;
-    aarch64|arm64)  ASSET="${BIN_NAME}-arm64" ;;
+    x86_64)         ASSET="${ASSET_PREFIX}-x86_64" ;;
+    aarch64|arm64)  ASSET="${ASSET_PREFIX}-arm64" ;;
     *) echo "error: unsupported arch $ARCH — use --from-source" >&2; exit 1 ;;
   esac
   if [ "$VERSION" = latest ]; then

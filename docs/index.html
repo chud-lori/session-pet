@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>session-pet — a pixel pet for your coding agents</title>
-<meta name="description" content="A native macOS pixel-art desktop pet that watches every Claude Code and Codex session — dings when an agent needs you, shows live session cards, and levels up as you ship.">
+<meta name="description" content="A native pixel-art desktop pet for macOS and Linux that watches every Claude Code and Codex session — dings when an agent needs you, shows live session cards, and levels up as you ship.">
 <style>
   :root {
     --bg: #12121c;
@@ -217,7 +217,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">macOS · AppKit · single Swift file</span>
+    <span class="kicker">macOS · Swift/AppKit &nbsp;·&nbsp; Linux · Rust/GTK</span>
     <h1>One tiny pet.<br>Every agent <em>session</em>.</h1>
     <p class="sub">
       session-pet is a pixel-art desktop companion that watches all of your
@@ -333,16 +333,25 @@
     <div class="wrap">
       <h2><span class="hash">#</span>Install</h2>
       <p class="lead">
-        Requirements: macOS 13+, Xcode Command Line Tools (<code>swiftc</code>),
-        <code>python3</code>. No Xcode, no package manager, no runtime deps.
+        One tool, one installer — macOS and Linux, native on both. Fastest
+        path needs no clone (prebuilt from releases):
+      </p>
+      <div class="codeblock"><pre><span class="p">$</span> curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh</pre></div>
+      <p style="color:var(--muted); font-size:.92rem">
+        Add <code>-s -- --login-item</code> to start at every login. From a
+        clone the same script builds from source:
       </p>
       <div class="codeblock"><pre><span class="p">$</span> git clone https://github.com/chud-lori/session-pet.git
 <span class="p">$</span> cd session-pet
 <span class="p">$</span> ./install.sh --login-item   <span class="c"># build + run + start at every login</span></pre></div>
       <p style="color:var(--muted); font-size:.92rem">
-        Prefer a one-off run? Plain <code>./install.sh</code> builds and starts the
-        pet for this session only. <code>./install.sh --uninstall</code> removes the
-        LaunchAgent and stops the pet, leaving the repo and your pet's state untouched.
+        <code>./install.sh --uninstall</code> removes it on either OS, leaving
+        your pet's state untouched. Requirements: <code>python3</code>; clone
+        builds also need <code>swiftc</code> (macOS 13+, Command Line Tools) or
+        <code>cargo</code> + <code>libgtk-3-dev</code> (Linux). Prebuilt Linux
+        binaries only need the GTK3 runtime already on GNOME/KDE/XFCE desktops —
+        Wayland/compositor notes live in the
+        <a href="https://github.com/chud-lori/session-pet#native-pet--linux-python-core--rustgtk-face">README</a>.
       </p>
       <p style="color:var(--muted); font-size:.92rem; margin-top:10px">
         <strong style="color:var(--ink)">Optional — permission-prompt alerts:</strong>
