@@ -20,6 +20,14 @@ cd session-pet
 
 `./install.sh --uninstall` removes it.
 
+**Linux?** Same pet, native Rust + GTK face, no clone needed:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/linux/install.sh | sh
+```
+
+See [linux/README.md](linux/README.md) (architecture, Wayland notes, flags).
+
 ## Using the pet
 
 | Action | How |

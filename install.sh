@@ -9,6 +9,17 @@
 # Requirements: macOS 13+, Xcode Command Line Tools (swiftc), python3.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+# Linux: delegate to the Linux installer (Rust face + Python core).
+# --login-item is the mac spelling; map it to the XDG equivalent.
+if [[ "$(uname -s)" == "Linux" ]]; then
+  args=()
+  for a in "$@"; do
+    [[ "$a" == "--login-item" ]] && a="--autostart"
+    args+=("$a")
+  done
+  exec "$ROOT/linux/install.sh" ${args[@]+"${args[@]}"}
+fi
 PLIST="$HOME/Library/LaunchAgents/com.session-pet.plist"
 BIN="$ROOT/native/SessionPet"
 mkdir -p "$ROOT/.state"   # fresh clones ship without it; the pet/hook need it
