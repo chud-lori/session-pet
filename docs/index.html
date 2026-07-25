@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>session-pet — a pixel pet for your coding agents</title>
-<meta name="description" content="A native macOS pixel-art desktop pet that watches every Claude Code and Codex session — dings when an agent needs you, shows live session cards, and levels up as you ship.">
+<meta name="description" content="A native pixel-art desktop pet for macOS and Linux that watches every Claude Code and Codex session — dings when an agent needs you, shows live session cards, and levels up as you ship.">
 <style>
   :root {
     --bg: #12121c;
@@ -217,7 +217,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">macOS · AppKit · single Swift file</span>
+    <span class="kicker">macOS · Swift/AppKit &nbsp;·&nbsp; Linux · Rust/GTK</span>
     <h1>One tiny pet.<br>Every agent <em>session</em>.</h1>
     <p class="sub">
       session-pet is a pixel-art desktop companion that watches all of your
@@ -333,7 +333,8 @@
     <div class="wrap">
       <h2><span class="hash">#</span>Install</h2>
       <p class="lead">
-        Requirements: macOS 13+, Xcode Command Line Tools (<code>swiftc</code>),
+        <strong style="color:var(--ink)">macOS</strong> — requirements: macOS 13+,
+        Xcode Command Line Tools (<code>swiftc</code>),
         <code>python3</code>. No Xcode, no package manager, no runtime deps.
       </p>
       <div class="codeblock"><pre><span class="p">$</span> git clone https://github.com/chud-lori/session-pet.git
@@ -343,6 +344,22 @@
         Prefer a one-off run? Plain <code>./install.sh</code> builds and starts the
         pet for this session only. <code>./install.sh --uninstall</code> removes the
         LaunchAgent and stops the pet, leaving the repo and your pet's state untouched.
+        No toolchain? A prebuilt universal binary tarball
+        (<code>session-pet-macos.tar.gz</code>) ships with each
+        <a href="https://github.com/chud-lori/session-pet/releases">release</a> —
+        extract and run <code>./session-pet/native/SessionPet</code>.
+      </p>
+      <p class="lead" style="margin-top:26px">
+        <strong style="color:var(--ink)">Linux</strong> — same pet, native
+        Rust&nbsp;+&nbsp;GTK face, shared XP. Requirements: <code>python3</code> and
+        the GTK3 runtime already on GNOME/KDE/XFCE desktops. No clone needed:
+      </p>
+      <div class="codeblock"><pre><span class="p">$</span> curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/linux/install.sh | sh</pre></div>
+      <p style="color:var(--muted); font-size:.92rem">
+        Add <code>-s -- --autostart</code> to start at every login. From a clone,
+        <code>./install.sh</code> auto-builds from source when <code>cargo</code> is
+        around. Wayland/compositor notes live in the
+        <a href="https://github.com/chud-lori/session-pet#native-pet--linux-python-core--rustgtk-face">README</a>.
       </p>
       <p style="color:var(--muted); font-size:.92rem; margin-top:10px">
         <strong style="color:var(--ink)">Optional — permission-prompt alerts:</strong>

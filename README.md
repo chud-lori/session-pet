@@ -1,16 +1,20 @@
 # <img src="docs/icon.svg" width="40" alt="session-pet dragon" align="top"> session-pet
 
 A pixel-art desktop companion for your coding agents: one tiny always-on-top
-native pet that watches **every Claude Code and Codex session** on your Mac —
+native pet that watches **every Claude Code and Codex session** on your
+machine (macOS and Linux) —
 it bounces while agents work, dings the moment one needs your input (including
 permission prompts, via an optional hook), flags sessions that stall mid-turn,
 shows live per-session cards (project, current tool, context size, last
-message), and levels up across 8 species as you ship. Plain Swift/AppKit,
-no Xcode, no dependencies.
+message), and levels up across 8 species as you ship. Native on both
+platforms — Swift/AppKit on macOS, Rust/GTK on Linux — same pet, same XP,
+same `.state/state.json`. No Electron, no dependencies.
 
 **Docs & tour:** <https://chud-lori.github.io/session-pet/>
 
 ## Quick install
+
+**macOS** (macOS 13+, Command Line Tools, python3):
 
 ```bash
 git clone https://github.com/chud-lori/session-pet.git
@@ -18,15 +22,20 @@ cd session-pet
 ./install.sh --login-item   # build + run + start at every login
 ```
 
-`./install.sh --uninstall` removes it.
-
-**Linux?** Same pet, native Rust + GTK face, no clone needed:
+**Linux** (python3 + the GTK3 runtime any GNOME/KDE/XFCE desktop already
+has) — no clone needed, downloads a prebuilt binary:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/linux/install.sh | sh
 ```
 
-See [linux/README.md](linux/README.md) (architecture, Wayland notes, flags).
+Append `-s -- --autostart` to start at every login. From a clone,
+`./install.sh` works on both OSes (it auto-builds from source on Linux when
+`cargo` is available; flags: `--download`, `--from-source`, `--layer-shell`,
+`--version vX.Y.Z`). `./install.sh --uninstall` removes it on either OS.
+Prebuilt macOS users: grab `session-pet-macos.tar.gz` from
+[releases](https://github.com/chud-lori/session-pet/releases), extract, run
+`./session-pet/native/SessionPet`.
 
 ## Using the pet
 
@@ -49,7 +58,8 @@ The `pet` helper works from anywhere in the repo:
 ./pet status   # is it running?
 ```
 
-It also returns automatically at next login (LaunchAgent). **Wandering:** the
+It also returns automatically at next login (LaunchAgent). **Wandering
+(macOS for now):** the
 pet takes short strolls along your screen (animated walk cycle) every so often
 — never while something needs your attention, and off entirely via
 settings ▸ "let the pet wander around". Wherever you drag it or it walks to
@@ -66,7 +76,7 @@ you.
 > Maintainers: the docs page is served from `docs/` — enable it once via
 > GitHub **Settings → Pages → Deploy from a branch → `main` / `/docs`**.
 
-## Native desktop pet (primary)
+## Native pet — macOS (Swift/AppKit)
 
 ```bash
 swiftc -O native/src/*.swift -o native/SessionPet   # build (CLT only, no Xcode)
@@ -82,6 +92,51 @@ snippet** in the panel. Sprites and species come from `native/assets.json` —
 the sprite **source of truth** (originally exported from the legacy
 `pet_window.py` pixel maps via `python3 native/export_assets.py`). Shares
 `.state/state.json` with the Python pet.
+
+## Native pet — Linux (Python core + Rust/GTK face)
+
+Same pet, different native face, built as a **core/face split**:
+
+```
+linux/core.py    Python (stdlib only) — scans ~/.claude + ~/.codex transcripts,
+                 owns pet state/XP, decides sounds. Port of the Swift Scanner.
+linux/face/      Rust + GTK3 — draws the sprite, plays sounds, panel, clicks.
+                 Spawns core.py and speaks NDJSON with it over stdin/stdout.
+```
+
+All parsing of session transcripts (untrusted text) happens in the Python
+core; the Rust face only reads the core's own JSON. Sprites come from the
+same `native/assets.json`, and `.state/state.json` is shared — your dragon
+keeps its level across OSes. Sound plays via `paplay`, `pw-play`, or
+`ffplay` (first found; none = silent). The prebuilt binary embeds the core
+and assets, so it runs without a clone (state under
+`~/.local/share/session-pet`).
+
+**Wayland notes** (if the pet won't stay on top):
+
+- **X11 / XWayland** (incl. Ubuntu GNOME): works out of the box.
+- **Pure Wayland on KDE / sway / Hyprland:** build with
+  `./linux/install.sh --from-source --layer-shell` — the pet becomes a real
+  overlay (fixed bottom-right; compositors don't let clients move layer
+  surfaces).
+- **Pure Wayland on GNOME:** GNOME has no layer-shell and Wayland forbids
+  app-side always-on-top — run under XWayland: `GDK_BACKEND=x11
+  session-pet-linux` (the default install does this automatically).
+
+Hacking:
+
+```bash
+python3 linux/core.py --once          # one snapshot, pretty-printed
+python3 linux/core.py --serve         # what the face runs
+cd linux/face && cargo run -- 6       # face at scale 6 (needs a display)
+```
+
+`SESSION_PET_ROOT` overrides the state/sounds/sprites root;
+`SESSION_PET_HOME` points the scanners at a fixture home (same as the test
+rig). Tags `v*` build `session-pet-linux-{x86_64,arm64}` and the universal
+`session-pet-macos.tar.gz` via `.github/workflows/release.yml`; Linux
+release binaries skip layer-shell on purpose so their only deps stay
+python3 + GTK3.
 
 ## Non-goals
 
