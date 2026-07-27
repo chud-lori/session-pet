@@ -89,7 +89,6 @@ else
   # curl | sh without a clone: prebuilt universal binary + assets tarball,
   # unpacked to the same layout the app expects (state lives inside it)
   ROOT="$HOME/.local/share/session-pet"
-  BIN="$ROOT/native/SessionPet"
   echo "▸ downloading prebuilt universal binary"
   mkdir -p "$ROOT/.state"
   TARBALL="$(mktemp)"
@@ -101,6 +100,9 @@ else
   }
   tar -xzf "$TARBALL" -C "$ROOT" --strip-components 1
   rm -f "$TARBALL"
+  # prefer the bundled app — only a bundle can hold Automation permission
+  BIN="$ROOT/native/SessionPet.app/Contents/MacOS/SessionPet"
+  [ -x "$BIN" ] || BIN="$ROOT/native/SessionPet"
 fi
 
 if [ "${1:-}" = "--login-item" ]; then
