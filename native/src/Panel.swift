@@ -13,12 +13,14 @@ class FlippedView: NSView {
 
 class ClickableCard: FlippedView {
     var onClick: (() -> Void)?
+    var onRightClick: (() -> Void)?
     private var downAt: NSPoint = .zero
     override func mouseDown(with event: NSEvent) { downAt = NSEvent.mouseLocation }
     override func mouseUp(with event: NSEvent) {
         let m = NSEvent.mouseLocation
         if abs(m.x - downAt.x) + abs(m.y - downAt.y) < 6 { onClick?() }
     }
+    override func rightMouseUp(with event: NSEvent) { onRightClick?() }
 }
 
 // one PERSISTENT expandable card per session (code-island style): the surface
@@ -36,9 +38,6 @@ final class SessionCard: ClickableCard {
     private let pathLabel = NSTextField(labelWithString: "")
     private let meta = NSTextField(labelWithString: "")
     private let snippet = NSTextField(wrappingLabelWithString: "")
-    // jump-to-terminal affordance; hidden when we can't find the process
-    let jumpButton = NSButton(title: "↗", target: nil, action: nil)
-    var onJump: (() -> Void)?
 
     init() {
         super.init(frame: .zero)
@@ -79,16 +78,8 @@ final class SessionCard: ClickableCard {
         for v in [badgePill, ageLabel, titleLabel, status, pathLabel, meta, snippet] {
             addSubview(v)
         }
-        jumpButton.isBordered = false
-        jumpButton.font = NSFont.systemFont(ofSize: 12)
-        jumpButton.contentTintColor = cMuted
-        jumpButton.toolTip = "jump to the terminal running this session"
-        jumpButton.target = self
-        jumpButton.action = #selector(jumpTapped)
-        addSubview(jumpButton)
+        toolTip = "click to jump to this session's terminal · right-click for details"
     }
-
-    @objc private func jumpTapped() { onJump?() }
 
     required init?(coder: NSCoder) { fatalError("unused") }
 
@@ -121,15 +112,9 @@ final class SessionCard: ClickableCard {
             badge.frame = NSRect(x: 6, y: (16 - textH) / 2, width: labelW, height: textH)
         }
         ageLabel.stringValue = fmtAge(sess.age)
-        // jump arrow sits at the far right of the identity strip; the age
-        // shifts left to make room only when the session is jumpable
-        let canJump = agentProcs[sess.path] != nil
-        jumpButton.isHidden = !canJump
-        jumpButton.frame = NSRect(x: width - padH - 16, y: cy, width: 16, height: 16)
         // same text-top as the badge label ((16-11)/2 = 2.5) so both Menlo 10
         // baselines land together on the identity row
-        ageLabel.frame = NSRect(x: width - padH - 48 - (canJump ? 18 : 0),
-                                y: cy + 2.5, width: 48, height: 12)
+        ageLabel.frame = NSRect(x: width - padH - 48, y: cy + 2.5, width: 48, height: 12)
         cy += 22
 
         // row 2 — title (hero), wraps to at most 2 full-width lines
@@ -460,10 +445,12 @@ final class Panel {
             }
             card.update(sess, open: expanded.contains(sess.path), width: 332)
             card.setFrameOrigin(NSPoint(x: 0, y: y))
-            card.onJump = { jumpToTerminal(sess) }
+            // whole card = jump target (a 16pt arrow was too small to hit);
+            // details move to right-click
+            card.onRightClick = { [weak self] in self?.toggleCard(sess.path) }
             card.onClick = { [weak self] in
                 self?.onCardClick?(sess) // per-card ack
-                self?.toggleCard(sess.path)
+                jumpToTerminal(sess)
             }
             y += card.frame.height + 8
         }

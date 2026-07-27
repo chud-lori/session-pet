@@ -144,6 +144,51 @@ private func escaped(_ s: String) -> String {
         .replacingOccurrences(of: "\"", with: "\\\"")
 }
 
+// Ghostty (1.2+) ships a real scripting dictionary: application → windows →
+// tabs → terminals, where a terminal knows its live `working directory` and
+// `focus` raises its window, tab and split in one call. There is no tty
+// property, so the exact surface is identified by pairing that working
+// directory with the tab name — which carries the session's own title,
+// because Claude Code sets it (e.g. "✳ Review Slack thread about HVL").
+// Neither key alone is enough: several tabs commonly share a repo, and a
+// title alone can outlive the directory it was created in.
+private func jumpGhostty(_ sess: SessionInfo, bundleID: String) {
+    let cwd = sess.cwd.map { $0.hasPrefix("~") ? home + $0.dropFirst() : $0 } ?? ""
+    let label = sess.label
+    let hasCwd = !cwd.isEmpty, hasLabel = !label.isEmpty
+    guard hasCwd || hasLabel else { return }
+    var passes: [String] = []
+    if hasCwd, hasLabel {
+        passes.append("""
+                if (working directory of trm is "\(escaped(cwd))") \
+        and (name of t contains "\(escaped(label))") then
+        """)
+    }
+    // then either key on its own — a renamed tab or a session that cd'd away
+    // should still land on the right window, just less certainly
+    if hasLabel {
+        passes.append("if name of t contains \"\(escaped(label))\" then")
+    }
+    if hasCwd {
+        passes.append("if working directory of trm is \"\(escaped(cwd))\" then")
+    }
+    let body = passes.map { cond in
+        """
+        repeat with w in windows
+            repeat with t in tabs of w
+                repeat with trm in terminals of t
+                    \(cond)
+                        focus trm
+                        return
+                    end if
+                end repeat
+            end repeat
+        end repeat
+        """
+    }.joined(separator: "\n")
+    runAppleScript("tell application id \"\(escaped(bundleID))\"\n\(body)\nend tell")
+}
+
 /// Bring the terminal (and, where possible, the exact tab) running `sess`
 /// to the front. Returns false when we could not identify the process.
 @discardableResult
@@ -157,9 +202,12 @@ func jumpToTerminal(_ sess: SessionInfo) -> Bool {
     let bid = (ap.bundleID ?? "").lowercased()
     let dev = ap.tty.isEmpty ? "" : "/dev/\(ap.tty)"
     if bid.contains("iterm"), !dev.isEmpty {
+        // target by bundle id, never by name: iTerm2's scripting name is
+        // "iTerm", so `tell application "iTerm2"` fails to resolve entirely
+        // and the whole block silently does nothing.
         // tty is exact: no title guessing, no session-id bridge
         runAppleScript("""
-        tell application "iTerm2"
+        tell application id "com.googlecode.iterm2"
             repeat with w in windows
                 repeat with t in tabs of w
                     repeat with s in sessions of t
@@ -176,7 +224,7 @@ func jumpToTerminal(_ sess: SessionInfo) -> Bool {
         """)
     } else if bid == "com.apple.terminal", !dev.isEmpty {
         runAppleScript("""
-        tell application "Terminal"
+        tell application id "com.apple.Terminal"
             repeat with w in windows
                 repeat with t in tabs of w
                     if tty of t is "\(escaped(dev))" then
@@ -189,6 +237,8 @@ func jumpToTerminal(_ sess: SessionInfo) -> Bool {
             end repeat
         end tell
         """)
+    } else if bid.contains("ghostty") {
+        jumpGhostty(sess, bundleID: ap.bundleID ?? "com.mitchellh.ghostty")
     } else if !bid.isEmpty {
         // Everything else (Ghostty, VS Code, JetBrains, …) exposes no
         // scriptable session/tty model, so fall back to the accessibility

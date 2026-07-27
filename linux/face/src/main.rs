@@ -420,7 +420,7 @@ fn main() {
 /// window advertises one of them as _NET_WM_PID. Pure EWMH through GDK — no
 /// xdotool/wmctrl dependency. X11/XWayland only: Wayland has no protocol for
 /// focusing another application's window.
-pub fn jump_to_terminal(term_pids: &[i32], needle: &str) {
+pub fn jump_to_terminal(term_pids: &[i32], needles: &[String]) {
     if term_pids.is_empty() {
         return;
     }
@@ -437,8 +437,11 @@ pub fn jump_to_terminal(term_pids: &[i32], needle: &str) {
             u32::from_ne_bytes([data[0], data[1], data[2], data[3]]) as i32
         })
     };
+    let legacy_name = gdk::Atom::intern("WM_NAME");
+    let string_atom = gdk::Atom::intern("STRING");
     let title = |win: &gdk::Window| -> String {
         gdk::property_get(win, &name_atom, &utf8, 0, 1024, 0)
+            .or_else(|| gdk::property_get(win, &legacy_name, &string_atom, 0, 1024, 0))
             .map(|(_, _, d)| String::from_utf8_lossy(&d).to_string())
             .unwrap_or_default()
     };
@@ -450,12 +453,15 @@ pub fn jump_to_terminal(term_pids: &[i32], needle: &str) {
         .rev()
         .filter(|w| read_pid(w).map_or(false, |p| term_pids.contains(&p)))
         .collect();
-    // GNOME Terminal, Konsole and Ghostty serve EVERY window from a single
-    // process, so _NET_WM_PID alone can't tell their windows apart — break
-    // the tie on the window title, which carries the project directory.
-    let target = matches
+    // GNOME Terminal (Ubuntu's default), Konsole and Ghostty serve EVERY
+    // window from a single process, so _NET_WM_PID alone cannot tell their
+    // windows apart — disambiguate on the window title. Needles are ordered
+    // most-specific first: the session's own title (Claude Code writes it
+    // into the terminal title) beats the project directory.
+    let target = needles
         .iter()
-        .find(|w| !needle.is_empty() && title(w).contains(needle))
+        .filter(|n| !n.is_empty())
+        .find_map(|n| matches.iter().find(|w| title(w).contains(n.as_str())))
         .or_else(|| matches.first());
     if let Some(win) = target {
         win.focus(gtk::current_event_time());

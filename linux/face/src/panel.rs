@@ -21,6 +21,9 @@ pub struct Panel {
     xp_bar: gtk::ProgressBar,
     chip: gtk::Label,
     cards: gtk::ListBox,
+    /// per-row jump payload: (terminal pid chain, title needles most
+    /// specific first) — parallel to card_paths
+    card_jumps: Rc<RefCell<Vec<(Vec<i32>, Vec<String>)>>>,
     species_btns: Vec<(String, gtk::Button)>,
     sound: gtk::CheckButton,
     walk: gtk::CheckButton,
@@ -143,16 +146,25 @@ impl Panel {
         root.pack_start(&scroll, true, true, 0);
 
         let card_paths: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(vec![]));
+        let card_jumps: Rc<RefCell<Vec<(Vec<i32>, Vec<String>)>>> =
+            Rc::new(RefCell::new(vec![]));
         {
             let send = send.clone();
             let card_paths = card_paths.clone();
+            let card_jumps = card_jumps.clone();
             cards.connect_row_activated(move |_, row| {
                 let idx = row.index();
-                if idx >= 0 {
-                    if let Some(path) = card_paths.borrow().get(idx as usize) {
-                        // clicking a card = you saw that session (per-card ack)
-                        send(serde_json::json!({"cmd": "ack", "path": path}));
-                    }
+                if idx < 0 {
+                    return;
+                }
+                if let Some(path) = card_paths.borrow().get(idx as usize) {
+                    // clicking a card = you saw that session (per-card ack)
+                    send(serde_json::json!({"cmd": "ack", "path": path}));
+                }
+                // …and jump to its terminal: the whole card is the target,
+                // which a 16px arrow never was
+                if let Some((pids, needles)) = card_jumps.borrow().get(idx as usize) {
+                    crate::jump_to_terminal(pids, needles);
                 }
             });
         }
@@ -262,6 +274,7 @@ impl Panel {
             xp_bar,
             chip,
             cards,
+            card_jumps,
             species_btns,
             sound,
             walk,
@@ -334,6 +347,8 @@ impl Panel {
         }
         let mut paths = self.card_paths.borrow_mut();
         paths.clear();
+        let mut jumps = self.card_jumps.borrow_mut();
+        jumps.clear();
         for s in &snap.sessions {
             let row = gtk::ListBoxRow::new();
             row.set_margin_bottom(8);
@@ -345,24 +360,6 @@ impl Panel {
             // top: project pill left, age right
             let top = gtk::Box::new(gtk::Orientation::Horizontal, 6);
             top.pack_start(&badge_label(&s.project), false, false, 0);
-            // jump arrow, only when the core identified the terminal process
-            if !s.term_pids.is_empty() {
-                let jump = gtk::Button::with_label("↗");
-                jump.style_context().add_class("jump-btn");
-                jump.set_relief(gtk::ReliefStyle::None);
-                jump.set_tooltip_text(Some("jump to the terminal running this session"));
-                let pids = s.term_pids.clone();
-                // title tiebreak for single-process terminals: the project
-                // dir is what their window titles carry
-                let needle = s
-                    .cwd
-                    .as_deref()
-                    .and_then(|c| c.rsplit('/').next())
-                    .unwrap_or(&s.project)
-                    .to_string();
-                jump.connect_clicked(move |_| crate::jump_to_terminal(&pids, &needle));
-                top.pack_end(&jump, false, false, 0);
-            }
             let age = gtk::Label::new(Some(&fmt_age(s.age)));
             age.style_context().add_class("dim");
             top.pack_end(&age, false, false, 0);
@@ -403,6 +400,14 @@ impl Panel {
             row.add(&card);
             self.cards.add(&row);
             paths.push(s.path.clone());
+            // needles, most specific first: Claude Code writes the session
+            // title into the terminal title, so it beats the directory name
+            let mut needles = vec![s.label.clone()];
+            if let Some(dir) = s.cwd.as_deref().and_then(|c| c.rsplit('/').next()) {
+                needles.push(dir.to_string());
+            }
+            needles.push(s.project.clone());
+            jumps.push((s.term_pids.clone(), needles));
         }
         self.cards.show_all();
 
