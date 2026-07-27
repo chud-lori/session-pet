@@ -256,7 +256,6 @@ fn main() {
                 return glib::Propagation::Stop; // duplicate dispatch
             }
             s.last_press_t = ev.time();
-            eprintln!("[pet] press button={}", ev.button());
             if ev.button() == 1 {
                 s.press_root = Some(ev.root());
                 s.press_origin = win.position();
@@ -308,7 +307,6 @@ fn main() {
                         s.press_root = None;
                         s.dragged
                     };
-                    eprintln!("[pet] release dragged={dragged}");
                     if !dragged {
                         toggle_panel(&pet_panel, win, &st.borrow().snap, &assets);
                     }
@@ -449,20 +447,49 @@ fn update_walk(s: &mut St, window: &gtk::Window, p: &panel::Panel) {
     }
 }
 
-fn toggle_panel(p: &panel::Panel, _pet_win: &gtk::Window, snap: &Snapshot, assets: &Assets) {
+// beside the pet, never on top of it (mac Panel behavior): left of the pet
+// when it fits, otherwise right; vertically aligned to the pet, clamped to
+// the monitor. The move itself happens on map (see Panel::place_at).
+fn place_panel(p: &panel::Panel, pet_win: &gtk::Window) {
+    let (px, py) = pet_win.position();
+    let (pet_w, pet_h) = pet_win.size();
+    let (pan_w, pan_h) = {
+        let (_, nat) = p.window.preferred_size();
+        (nat.width().max(340), nat.height().max(200))
+    };
+    let geo = gdk::Display::default()
+        .and_then(|d| {
+            d.monitor_at_point(px + pet_w / 2, py + pet_h / 2)
+                .or_else(|| d.primary_monitor())
+                .or_else(|| d.monitor(0))
+        })
+        .map(|m| m.geometry());
+    let (min_x, max_x, min_y, max_y) = match geo {
+        Some(g) => (
+            g.x() + 8,
+            g.x() + g.width() - pan_w - 8,
+            g.y() + 8,
+            g.y() + g.height() - pan_h - 8,
+        ),
+        None => (8, 8.max(1920 - pan_w - 8), 8, 8.max(1080 - pan_h - 8)),
+    };
+    let left = px - pan_w - 10;
+    let x = if left >= min_x { left } else { px + pet_w + 10 };
+    // bottom-align to the pet, like the mac panel
+    let y = py + pet_h - pan_h;
+    p.place_at
+        .set((x.clamp(min_x, max_x.max(min_x)), y.clamp(min_y, max_y.max(min_y))));
+}
+
+fn toggle_panel(p: &panel::Panel, pet_win: &gtk::Window, snap: &Snapshot, assets: &Assets) {
     if p.window.is_visible() {
         p.window.hide();
         return;
     }
     p.refresh(snap, assets);
+    place_panel(p, pet_win);
     p.window.show_all();
-    p.window.present(); // force map + raise — placement is WindowPosition::Mouse
-    eprintln!(
-        "[pet] panel shown: visible={} pos={:?} size={:?}",
-        p.window.is_visible(),
-        p.window.position(),
-        p.window.size()
-    );
+    p.window.present(); // force map + raise
 }
 
 fn show_menu(
@@ -477,9 +504,11 @@ fn show_menu(
     let open = gtk::MenuItem::with_label("Open panel");
     {
         let p = p.clone();
+        let win = win.clone();
         open.connect_activate(move |_| {
-            // refresh happens on the next snapshot; placement is Mouse
+            // refresh happens on the next snapshot
             if !p.window.is_visible() {
+                place_panel(&p, &win);
                 p.window.show_all();
                 p.window.present();
             }

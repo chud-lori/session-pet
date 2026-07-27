@@ -13,6 +13,9 @@ pub type CmdSender = Rc<dyn Fn(serde_json::Value)>;
 
 pub struct Panel {
     pub window: gtk::Window,
+    /// where to place the panel once the WM has mapped it — moving before
+    /// the map races Mutter and the move is silently dropped
+    pub place_at: Rc<std::cell::Cell<(i32, i32)>>,
     header: gtk::Label,
     sub: gtk::Label,
     xp_bar: gtk::ProgressBar,
@@ -89,10 +92,6 @@ impl Panel {
         window.set_skip_taskbar_hint(true);
         window.set_skip_pager_hint(true);
         window.set_type_hint(gtk::gdk::WindowTypeHint::Utility);
-        // open where the user just clicked (the pet) — WM-native placement,
-        // no position() math, works on Mutter/XWayland where manual moves
-        // right after show_all race the map
-        window.set_position(gtk::WindowPosition::Mouse);
         window.set_default_size(340, -1);
         window.style_context().add_class("pet-panel");
         // closing via the WM must hide, not destroy — the panel is reused
@@ -235,8 +234,20 @@ impl Panel {
         root.pack_start(&settings, false, false, 2);
 
         window.add(&root);
+        let place_at = Rc::new(std::cell::Cell::new((0, 0)));
+        {
+            let place_at = place_at.clone();
+            window.connect_map_event(move |w, _| {
+                let (x, y) = place_at.get();
+                if (x, y) != (0, 0) {
+                    w.move_(x, y);
+                }
+                glib::Propagation::Proceed
+            });
+        }
         Panel {
             window,
+            place_at,
             header,
             sub,
             xp_bar,
