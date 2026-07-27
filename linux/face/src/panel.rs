@@ -42,6 +42,10 @@ impl Panel {
         window.set_skip_taskbar_hint(true);
         window.set_skip_pager_hint(true);
         window.set_type_hint(gtk::gdk::WindowTypeHint::Utility);
+        // open where the user just clicked (the pet) — WM-native placement,
+        // no position() math, works on Mutter/XWayland where manual moves
+        // right after show_all race the map
+        window.set_position(gtk::WindowPosition::Mouse);
         window.set_default_size(330, -1);
         window.style_context().add_class("pet-panel");
         // closing via the WM must hide, not destroy — the panel is reused

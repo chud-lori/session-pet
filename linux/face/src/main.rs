@@ -225,6 +225,9 @@ fn main() {
     }
 
     let pet_panel = Rc::new(panel::Panel::new(&assets, send.clone()));
+    // transient-of-the-pet: Mutter keeps parentless Utility windows odd —
+    // transient windows map reliably, stay on the pet's workspace and layer
+    pet_panel.window.set_transient_for(Some(&window));
 
     // --- input: drag to move, click for panel, right-click for menu
     window.add_events(
@@ -363,17 +366,14 @@ fn main() {
     gtk::main();
 }
 
-fn toggle_panel(p: &panel::Panel, pet_win: &gtk::Window, snap: &Snapshot, assets: &Assets) {
+fn toggle_panel(p: &panel::Panel, _pet_win: &gtk::Window, snap: &Snapshot, assets: &Assets) {
     if p.window.is_visible() {
         p.window.hide();
         return;
     }
     p.refresh(snap, assets);
     p.window.show_all();
-    let (px, py) = pet_win.position();
-    let pw = p.window.size().0;
-    let x = if px - pw - 10 > 0 { px - pw - 10 } else { px + pet_win.size().0 + 10 };
-    p.window.move_(x.max(0), (py - 120).max(10));
+    p.window.present(); // force map + raise — placement is WindowPosition::Mouse
 }
 
 fn show_menu(
@@ -387,20 +387,13 @@ fn show_menu(
     let menu = gtk::Menu::new();
     let open = gtk::MenuItem::with_label("Open panel");
     {
-        let win = win.clone();
-        let st = st.clone();
         let p = p.clone();
         open.connect_activate(move |_| {
-            // assets live inside the panel's picker already; refresh happens
-            // on the next snapshot — just show it near the pet
+            // refresh happens on the next snapshot; placement is Mouse
             if !p.window.is_visible() {
                 p.window.show_all();
-                let (px, py) = win.position();
-                let pw = p.window.size().0;
-                let x = if px - pw - 10 > 0 { px - pw - 10 } else { px + win.size().0 + 10 };
-                p.window.move_(x.max(0), (py - 120).max(10));
+                p.window.present();
             }
-            let _ = st.borrow(); // keep signature uniform; state read on snapshot
         });
     }
     menu.append(&open);
