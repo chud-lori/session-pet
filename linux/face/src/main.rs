@@ -97,6 +97,8 @@ struct St {
     snap: Snapshot,
     frame: i64,
     facing: f64,
+    walking: bool,
+    walk_target: Option<i32>,
     hidden_until: f64,
     // drag bookkeeping
     press_root: Option<(f64, f64)>,
@@ -199,6 +201,8 @@ fn main() {
         snap: Snapshot::default(),
         frame: 0,
         facing: 1.0,
+        walking: false,
+        walk_target: None,
         hidden_until: 0.0,
         press_root: None,
         press_origin: (0, 0),
@@ -352,6 +356,7 @@ fn main() {
         let st = st.clone();
         let area = area.clone();
         let window = window.clone();
+        let pet_panel = pet_panel.clone();
         glib::timeout_add_local(Duration::from_millis(250), move || {
             let mut s = st.borrow_mut();
             s.frame += 1;
@@ -359,6 +364,7 @@ fn main() {
                 s.hidden_until = 0.0;
                 window.show_all();
             }
+            update_walk(&mut s, &window, &pet_panel);
             drop(s);
             area.queue_draw();
             glib::ControlFlow::Continue
@@ -388,6 +394,59 @@ fn main() {
         }
     }
     gtk::main();
+}
+
+// wandering — port of App.swift updateWalk: occasionally amble a short
+// distance along the screen, little steps + facing flip. Stays put when
+// something needs attention, the panel is open, a drag is in progress, or
+// under layer-shell (layer surfaces can't be moved by the client).
+fn update_walk(s: &mut St, window: &gtk::Window, p: &panel::Panel) {
+    if !s.snap.pet.walk
+        || s.layer_shell
+        || p.window.is_visible()
+        || s.snap.needs_attention
+        || s.press_root.is_some()
+    {
+        s.walk_target = None;
+        s.walking = false;
+        return;
+    }
+    let (x, y) = window.position();
+    if let Some(t) = s.walk_target {
+        let step = 4;
+        if (t - x).abs() <= step {
+            s.walk_target = None;
+            s.walking = false;
+        } else {
+            let dir = if t > x { 1 } else { -1 };
+            s.facing = dir as f64;
+            s.walking = true;
+            window.move_(x + dir * step, y);
+        }
+    } else {
+        // no rand dep: clock nanos are plenty random for a stroll dice-roll
+        let r = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.subsec_nanos())
+            .unwrap_or(0);
+        let odds: u32 = if s.snap.mode == "working" { 64 } else { 32 };
+        if r % odds == 0 {
+            // ~every 8s idle, ~16s while agents work (4 fps tick)
+            if let Some(mon) = gdk::Display::default()
+                .and_then(|d| d.primary_monitor().or_else(|| d.monitor(0)))
+            {
+                let g = mon.geometry();
+                let win_w = window.size().0;
+                let min_x = g.x() + 10;
+                let max_x = g.x() + g.width() - win_w - 10;
+                let delta = (r / 7 % 561) as i32 - 280; // -280..=280
+                let t = (x + delta).clamp(min_x, max_x.max(min_x));
+                if (t - x).abs() > 50 {
+                    s.walk_target = Some(t);
+                }
+            }
+        }
+    }
 }
 
 fn toggle_panel(p: &panel::Panel, _pet_win: &gtk::Window, snap: &Snapshot, assets: &Assets) {
@@ -472,10 +531,18 @@ fn load_css() {
                      color: #cdd6f4; font-family: monospace; font-size: 13px; }
         .pet-panel label { color: #cdd6f4; }
         .pet-panel .dim { color: #7f849c; font-size: 90%; }
-        .pet-panel .card { padding: 4px 2px; }
+        .pet-panel .meta { color: #565a6e; font-size: 85%; }
+        .pet-panel .chip { background-color: #26262e; border-radius: 999px;
+                           padding: 2px 10px; font-size: 11px; }
+        .pet-panel .badge { border-radius: 999px; padding: 1px 9px;
+                            font-size: 11px; font-weight: bold; }
+        .pet-panel .card { background-color: #1e1e28; border-radius: 10px;
+                           padding: 10px 12px; }
+        .pet-panel .card-input { border: 1px solid rgba(242, 140, 168, 0.45); }
         .pet-panel list { background: transparent; }
-        .pet-panel row { border-radius: 8px; background: transparent; }
-        .pet-panel row:hover { background-color: rgba(60, 60, 80, 0.6); }
+        .pet-panel row { border-radius: 10px; background: transparent;
+                         padding: 0; }
+        .pet-panel row:hover .card { background-color: #26263a; }
         .pet-panel progressbar trough { background-color: #26262e;
                                         border-color: #26262e; min-height: 6px; }
         .pet-panel progressbar progress { background-color: #a6e3a1;
@@ -549,7 +616,7 @@ fn draw_pet(area: &gtk::DrawingArea, ctx: &gtk::cairo::Context, st: &St,
 
     // QUIET BASELINE, LOUD ALERT (see PetView.swift): only working bounces;
     // waiting/sleeping sit still except a subtle breath every ~4s
-    let bob = if mode == "working" {
+    let bob = if st.walking || mode == "working" {
         ((frame / 2) % 2) as f64 * (s / 2.0)
     } else if frame % 16 == 0 {
         s / 4.0
@@ -588,7 +655,7 @@ fn draw_pet(area: &gtk::DrawingArea, ctx: &gtk::cairo::Context, st: &St,
     sprites::draw_sprite(
         ctx, sp, s, ox, sprite_top, blink,
         (st.facing < 0.0) != wiggle,
-        None,
+        if st.walking { Some((frame / 2) as usize) } else { None },
     );
 
     // effects above the sprite
