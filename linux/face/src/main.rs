@@ -100,6 +100,7 @@ struct St {
     walking: bool,
     walk_target: Option<i32>,
     hidden_until: f64,
+    shaped_for: String, // species the input shape was built from
     // drag bookkeeping
     press_root: Option<(f64, f64)>,
     press_origin: (i32, i32),
@@ -204,6 +205,7 @@ fn main() {
         walking: false,
         walk_target: None,
         hidden_until: 0.0,
+        shaped_for: String::new(),
         press_root: None,
         press_origin: (0, 0),
         dragged: false,
@@ -346,6 +348,18 @@ fn main() {
                         window.show_all();
                     }
                     s.snap = snap;
+                    // the clickable silhouette follows the current sprite
+                    let key = if s.snap.pet.hatched {
+                        s.snap.pet.species.clone()
+                    } else {
+                        "egg".to_string()
+                    };
+                    if s.shaped_for != key {
+                        if let Some(sp) = assets.species.get(&key) {
+                            apply_input_shape(&window, sp, scale);
+                            s.shaped_for = key;
+                        }
+                    }
                     if pet_panel.window.is_visible() {
                         pet_panel.refresh(&s.snap, &assets);
                     }
@@ -399,6 +413,53 @@ fn main() {
         }
     }
     gtk::main();
+}
+
+// Per-pixel hit testing. AppKit gives the mac pet this for free (clicks on
+// transparent parts of a window pass through); on X11 the window is a plain
+// rectangle, so clicks near the pet — empty corners, the effects area above
+// it — used to hit it. Restrict input to the sprite's opaque pixels (with
+// vertical slack for the bob/hop) plus the caption plate band.
+fn apply_input_shape(window: &gtk::Window, sp: &sprites::Species, scale: f64) {
+    let Some(gdk_win) = WidgetExt::window(window) else { return };
+    let (w, h) = (window.size().0 as f64, window.size().1 as f64);
+    let cols = sp.rows.first().map_or(16.0, |r| r.chars().count() as f64);
+    let rows_n = sp.rows.len() as f64;
+    let ox = (w - cols * scale) / 2.0;
+    let sprite_top = h - 3.5 * scale - rows_n * scale;
+    let slack = 2.6 * scale; // excite-hop reaches ~2.2 * scale
+    let region = gtk::cairo::Region::create();
+    for (y, row) in sp.rows.iter().enumerate() {
+        // one rect per run of opaque pixels, so the silhouette is exact
+        let mut run: Option<usize> = None;
+        let cells: Vec<bool> = row.chars().map(|c| c != '.').collect();
+        for x in 0..=cells.len() {
+            let solid = x < cells.len() && cells[x];
+            match (run, solid) {
+                (None, true) => run = Some(x),
+                (Some(start), false) => {
+                    let rx = ox + start as f64 * scale;
+                    let ry = sprite_top + y as f64 * scale - slack;
+                    let _ = region.union_rectangle(&gtk::cairo::RectangleInt::new(
+                        rx.floor() as i32,
+                        ry.floor() as i32,
+                        ((x - start) as f64 * scale).ceil() as i32,
+                        (scale + slack + scale * 0.5).ceil() as i32,
+                    ));
+                    run = None;
+                }
+                _ => {}
+            }
+        }
+    }
+    // caption plate + status dots band along the bottom (opaque, clickable)
+    let _ = region.union_rectangle(&gtk::cairo::RectangleInt::new(
+        0,
+        (h - 4.2 * scale) as i32,
+        w as i32,
+        (4.2 * scale).ceil() as i32,
+    ));
+    gdk_win.input_shape_combine_region(&region, 0, 0);
 }
 
 // wandering — port of App.swift updateWalk: occasionally amble a short
