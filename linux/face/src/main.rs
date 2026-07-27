@@ -103,6 +103,10 @@ struct St {
     press_origin: (i32, i32),
     dragged: bool,
     layer_shell: bool,
+    // GTK3 dispatches each button event twice on this window (own GdkWindow
+    // + child propagation) — duplicates share the exact event timestamp
+    last_press_t: u32,
+    last_release_t: u32,
 }
 
 fn main() {
@@ -197,6 +201,8 @@ fn main() {
         press_origin: (0, 0),
         dragged: false,
         layer_shell: false,
+        last_press_t: 0,
+        last_release_t: 0,
     }));
 
     // pure-Wayland overlay via layer-shell where the compositor supports it
@@ -238,9 +244,13 @@ fn main() {
     {
         let st = st.clone();
         window.connect_button_press_event(move |win, ev| {
+            let mut s = st.borrow_mut();
+            if s.last_press_t == ev.time() {
+                return glib::Propagation::Stop; // duplicate dispatch
+            }
+            s.last_press_t = ev.time();
             eprintln!("[pet] press button={}", ev.button());
             if ev.button() == 1 {
-                let mut s = st.borrow_mut();
                 s.press_root = Some(ev.root());
                 s.press_origin = win.position();
                 s.dragged = false;
@@ -277,6 +287,13 @@ fn main() {
         let send = send.clone();
         let child_q = child.clone();
         window.connect_button_release_event(move |win, ev| {
+            {
+                let mut s = st.borrow_mut();
+                if s.last_release_t == ev.time() {
+                    return glib::Propagation::Stop; // duplicate dispatch
+                }
+                s.last_release_t = ev.time();
+            }
             match ev.button() {
                 1 => {
                     let dragged = {
@@ -449,13 +466,25 @@ fn load_css() {
     let _ = css.load_from_data(
         b"
         .pet-panel { background-color: rgba(24, 24, 37, 0.97);
-                     color: #cdd6f4; font-family: monospace; }
+                     color: #cdd6f4; font-family: monospace; font-size: 13px; }
         .pet-panel label { color: #cdd6f4; }
         .pet-panel .dim { color: #7f849c; font-size: 90%; }
         .pet-panel .card { padding: 4px 2px; }
-        .pet-panel row { border-radius: 8px; }
+        .pet-panel list { background: transparent; }
+        .pet-panel row { border-radius: 8px; background: transparent; }
         .pet-panel row:hover { background-color: rgba(60, 60, 80, 0.6); }
-        .pet-panel progressbar progress { background-color: #a6e3a1; }
+        .pet-panel progressbar trough { background-color: #26262e;
+                                        border-color: #26262e; min-height: 6px; }
+        .pet-panel progressbar progress { background-color: #a6e3a1;
+                                          border-color: #a6e3a1; min-height: 6px; }
+        .pet-panel expander title label { color: #7f849c; }
+        .pet-panel checkbutton check { background-image: none;
+            background-color: #26262e; border: 1px solid #45475a; }
+        .pet-panel checkbutton:checked check { background-color: #a6e3a1;
+            border-color: #a6e3a1; color: #181825; }
+        .pet-panel combobox button { background-image: none;
+            background-color: #26262e; color: #cdd6f4;
+            border: 1px solid #45475a; }
         ",
     );
     if let Some(screen) = gdk::Screen::default() {

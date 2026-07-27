@@ -34,6 +34,34 @@ fn phase_color(phase: &str) -> &'static str {
     }
 }
 
+// stable per-project badge color, hashed from the project name — same djb2 +
+// HSB(hue, 0.55, 0.88) formula as the mac panel (Config.swift projectColor)
+fn project_color(name: &str) -> String {
+    let mut h: u32 = 5381;
+    for b in name.bytes() {
+        h = h.wrapping_mul(33).wrapping_add(b as u32);
+    }
+    let hue = (h % 360) as f64 / 60.0;
+    let (s, v) = (0.55, 0.88);
+    let c = v * s;
+    let x = c * (1.0 - (hue % 2.0 - 1.0).abs());
+    let (r, g, b) = match hue as u32 {
+        0 => (c, x, 0.0),
+        1 => (x, c, 0.0),
+        2 => (0.0, c, x),
+        3 => (0.0, x, c),
+        4 => (x, 0.0, c),
+        _ => (c, 0.0, x),
+    };
+    let m = v - c;
+    format!(
+        "#{:02x}{:02x}{:02x}",
+        ((r + m) * 255.0) as u8,
+        ((g + m) * 255.0) as u8,
+        ((b + m) * 255.0) as u8
+    )
+}
+
 impl Panel {
     pub fn new(assets: &Assets, send: CmdSender) -> Self {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
@@ -52,6 +80,16 @@ impl Panel {
         window.connect_delete_event(|w, _| {
             w.hide();
             glib::Propagation::Stop
+        });
+        // Esc closes (mac closes on outside click; a GTK focus-out handler
+        // would also fire when the species dropdown grabs focus, so Esc +
+        // clicking the pet again are the close paths here)
+        window.connect_key_press_event(|w, ev| {
+            if ev.keyval() == gtk::gdk::keys::constants::Escape {
+                w.hide();
+                return glib::Propagation::Stop;
+            }
+            glib::Propagation::Proceed
         });
 
         let root = gtk::Box::new(gtk::Orientation::Vertical, 8);
@@ -222,9 +260,10 @@ impl Panel {
             top.set_ellipsize(gtk::pango::EllipsizeMode::End);
             let ctx = s.ctx.map(|c| format!(" · {}", fmt_tokens(c))).unwrap_or_default();
             top.set_markup(&format!(
-                "<span foreground='{}'>●</span> <b>{}</b> \
+                "<span foreground='{}'>●</span> <span foreground='{}'><b>{}</b></span> \
                  <span foreground='#7f849c'>{} · {}{}</span>",
                 phase_color(&s.phase),
+                project_color(&s.project),
                 glib::markup_escape_text(&s.project),
                 s.provider,
                 fmt_age(s.age),
