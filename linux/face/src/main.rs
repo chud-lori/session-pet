@@ -238,6 +238,7 @@ fn main() {
     {
         let st = st.clone();
         window.connect_button_press_event(move |win, ev| {
+            eprintln!("[pet] press button={}", ev.button());
             if ev.button() == 1 {
                 let mut s = st.borrow_mut();
                 s.press_root = Some(ev.root());
@@ -254,7 +255,9 @@ fn main() {
             if let Some((rx0, ry0)) = s.press_root {
                 let (rx, ry) = ev.root();
                 let (dx, dy) = (rx - rx0, ry - ry0);
-                if dx.abs() + dy.abs() > 3.0 {
+                // 8px: a plain click wobbles a few px on HiDPI/touchpads —
+                // 3px total misread clicks as drags and ate the panel toggle
+                if dx.abs() + dy.abs() > 8.0 {
                     s.dragged = true;
                 }
                 if s.dragged && !s.layer_shell {
@@ -281,6 +284,7 @@ fn main() {
                         s.press_root = None;
                         s.dragged
                     };
+                    eprintln!("[pet] release dragged={dragged}");
                     if !dragged {
                         toggle_panel(&pet_panel, win, &st.borrow().snap, &assets);
                     }
@@ -374,6 +378,12 @@ fn toggle_panel(p: &panel::Panel, _pet_win: &gtk::Window, snap: &Snapshot, asset
     p.refresh(snap, assets);
     p.window.show_all();
     p.window.present(); // force map + raise — placement is WindowPosition::Mouse
+    eprintln!(
+        "[pet] panel shown: visible={} pos={:?} size={:?}",
+        p.window.is_visible(),
+        p.window.position(),
+        p.window.size()
+    );
 }
 
 fn show_menu(
