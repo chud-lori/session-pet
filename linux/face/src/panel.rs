@@ -26,7 +26,6 @@ pub struct Panel {
     species_btns: Vec<(String, gtk::Button)>,
     sound: gtk::CheckButton,
     walk: gtk::CheckButton,
-    card_paths: Rc<RefCell<Vec<String>>>,
     refreshing: Rc<RefCell<bool>>,
 }
 
@@ -258,7 +257,6 @@ impl Panel {
             species_btns,
             sound,
             walk,
-            card_paths,
             refreshing,
         }
     }
@@ -325,8 +323,6 @@ impl Panel {
         for child in self.cards.children() {
             self.cards.remove(&child);
         }
-        let mut paths = self.card_paths.borrow_mut();
-        paths.clear();
         for s in &snap.sessions {
             let row = gtk::ListBoxRow::new();
             row.set_margin_bottom(8);
@@ -405,7 +401,6 @@ impl Panel {
                 });
             }
             self.cards.add(&row);
-            paths.push(s.path.clone());
         }
         self.cards.show_all();
 
