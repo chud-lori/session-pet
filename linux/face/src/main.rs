@@ -114,6 +114,15 @@ fn main() {
     let w = 18.0 * scale;
     let h = 23.0 * scale;
 
+    // GTK3 prefers the native Wayland backend on a Wayland session, where
+    // set_keep_above/move_/position are silent no-ops — the pet's whole
+    // windowing model. Pin XWayland unless the user overrides; layer-shell
+    // builds stay native Wayland (that's their point).
+    #[cfg(not(feature = "layer-shell"))]
+    if std::env::var_os("GDK_BACKEND").is_none() {
+        std::env::set_var("GDK_BACKEND", "x11");
+    }
+
     let layout = find_layout();
     let assets_text = layout
         .assets_json
