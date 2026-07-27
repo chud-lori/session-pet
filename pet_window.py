@@ -175,6 +175,54 @@ PIXELS = {
         "...krrttXtXtkrrXttk....",
         "....kkkkkkkkkkkkkk.....",
     ]},
+    # agumon's evolved form — adapted from a classic Greymon pixel art
+    # reference (pixelartmaker 2febaeaaff7ff79, 52x41): grid-sampled, then the
+    # tail trimmed by 11 columns so the map stays taller than wide (32x37
+    # renders a touch taller than agumon). NOTE: body orange is "a", not "X" —
+    # "X" is the helmet brown so the sleeping blank (o/w/g → X) melts the red
+    # eye "g" into the skull helmet instead of turning it orange.
+    "greymon": {"palette": {"X": "#63341d", "S": "#9c522e", "a": "#f2951b",
+                            "d": "#c46614", "y": "#ffb812", "b": "#0f60b3",
+                            "B": "#1484f5", "t": "#ffffff", "g": "#cf1f1f",
+                            "k": "#000000"}, "rows": [
+        "....k......................k....",
+        "....kk.....................k....",
+        "....kk.....................k....",
+        "....kSkk......kkkkk.XXX.kkkk....",
+        "....kXSSkkkkkkkSSSXXXXSXkkkk...k",
+        ".....kXXSSXXXXSXXSSXkXXSkkk...kk",
+        ".....kkkXXSSXXXXXXSSXkkXSk....kk",
+        "........kkXXXkXkkXXSSXkkSk...kSk",
+        ".......kXXkkkkkggkXXSXkkkk..kXSk",
+        "........XXXXkXkggtXXSkXSSkkkXSk.",
+        ".......kbkXXkXXgggkkkkXXXSSXXSk.",
+        ".......kbbkkXSXXkkkXXXXXXXXSXk..",
+        ".......kddkXSSSSXXXXXXXXXXXXSSk.",
+        ".......kbdkSSXXXXXXXXXXXXXXXSSk.",
+        "........kbkkkkkkktkkXXXXXXXXSSk.",
+        "........kdddaaaaakaakkXXXXXXSk..",
+        ".......kbdkdayyByyaaktkktkktkk..",
+        ".......kbbddaaabyyByakaakaak....",
+        "......kakbbdkkddbaaByyaaakk.....",
+        ".....kaaddkkdddddbakkkkkk.......",
+        "....kkaakdbbkkkdkkk.............",
+        "kkkkddakkddbddkkBkk....kkk......",
+        "kbkdakkyykdddaayBkdkkkkadak.....",
+        "kbkdaaaatkkbaakaakkddddkaatk....",
+        "kbkkaakktkakkdykkbkddkdtkktk....",
+        "kdkkktkbkktkayyaakbkkkktktkk....",
+        "kdkBBkbkbbkyayyakBk....kktk.....",
+        "kkBayyybkbbaayaakyBk.....kk.....",
+        "kkaaBBbakdbBaadddByyk...........",
+        "kkaByyybkddddddkaaaak...........",
+        ".kdaayaakddddkkdaaakk...........",
+        "kddaaaakkkkkkdddakkk............",
+        "kdaaakkk....kkddkaaykk..........",
+        "kaayyadk...kdddddaayyykkk.......",
+        "kayyyyyak..kddddddattdttk.......",
+        "ktktttkttk..kkkkkkkkkkkk........",
+        "kkkkkkkkkk......................",
+    ]},
     "fox": {"palette": {"X": "#f28c4b", "d": "#d97636", "o": "#26262e", "w": "#ffffff",
                         "W": "#fdf3e3", "p": "#e8828f", "k": "#4a3326"}, "rows": [
         "..kk........kk..",
@@ -649,7 +697,8 @@ class PetWindow:
         grid.pack(anchor="w", pady=(2, 0))
         self.pick = {}
         mini = 2  # picker sprite scale
-        for i, key in enumerate(pet.SPECIES):
+        pickable = [k for k in pet.SPECIES if not pet.SPECIES[k].get("hidden")]
+        for i, key in enumerate(pickable):
             rows = PIXELS[key]["rows"]
             es = eff_scale(key, mini)
             c = tk.Canvas(grid, width=SPRITE_COLS * mini + 6,
@@ -695,8 +744,9 @@ class PetWindow:
         xp = pet.total_xp(state)
         stage, lo, hi = pet.stage_for(xp)
         species_key = state.get("species", pet.DEFAULT_SPECIES)
-        sp = pet.SPECIES.get(species_key, pet.SPECIES[pet.DEFAULT_SPECIES])
         hatched = state.get("hatched") or stage != "egg"
+        shown = pet.sprite_for(species_key, stage) if hatched else species_key
+        sp = pet.SPECIES.get(shown, pet.SPECIES[pet.DEFAULT_SPECIES])
         name = (state.get("name") or sp["name"]) if hatched else "???"
         crown = "👑 " if stage == "legendary" else ""
         level = min(99, 1 + int((xp / 10.0) ** 0.5))
@@ -813,7 +863,7 @@ class PetWindow:
         stage, _, _ = pet.stage_for(xp)
         species_key = state.get("species", pet.DEFAULT_SPECIES)
         hatched = state.get("hatched") or stage != "egg"
-        sprite_key = species_key if hatched else "egg"
+        sprite_key = pet.sprite_for(species_key, stage) if hatched else "egg"
 
         bob_period = {"working": 2, "waiting": 6, "sleeping": 10}[self.mode]
         bob = ((self.frame // bob_period) % 2) * (self.scale // 2)
@@ -852,7 +902,7 @@ class PetWindow:
                                         x0 + i * gap + r, y + r,
                                         fill=color, outline="")
 
-        sp = pet.SPECIES.get(species_key, pet.SPECIES[pet.DEFAULT_SPECIES])
+        sp = pet.SPECIES.get(sprite_key, pet.SPECIES[pet.DEFAULT_SPECIES])
         name = (state.get("name") or sp["name"]) if hatched else "???"
         level = min(99, 1 + int((xp / 10.0) ** 0.5))
         crown = "👑" if stage == "legendary" else ""

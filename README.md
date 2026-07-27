@@ -195,7 +195,10 @@ count, last active project, sound toggle, and a **visual sprite picker** (click
 a portrait to adopt it). **Drag** to move it anywhere. **Right-click** to quit.
 
 A brand-new pet starts as an egg; picking a sprite in the modal hatches it
-instantly (30 XP hatches it automatically too). Sprites are chibi pixel maps
+instantly (30 XP hatches it automatically too). Some species evolve: an
+agumon becomes **Greymon** when it reaches the adult stage (200 XP) — the
+picker still shows (and keeps) your base species; the evolved form is earned,
+not picked. Sprites are chibi pixel maps
 in `pet_window.py` (`PIXELS`) — 16px wide baseline; denser maps (the 32px
 agumon) render at a proportionally smaller cell size so every species keeps
 the same on-screen footprint. Add your own species by adding a map + an

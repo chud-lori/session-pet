@@ -35,7 +35,12 @@ SPECIES = {
     "crab":    {"name": "Clicky", "emoji": "🦀", "working": ["🔧", "⚙️"], "waiting": ["❓", "🫧"], "sleeping": ["💤", "🌊"]},
     "octopus": {"name": "Inky",   "emoji": "🐙", "working": ["⌨️", "🖋️"], "waiting": ["❓", "🫧"], "sleeping": ["💤", "🌊"]},
     "dino":    {"name": "Rex",    "emoji": "🦖", "working": ["⚡", "💥"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🌋"]},
-    "agumon":  {"name": "Agumon", "emoji": "🦕", "working": ["🔥", "💥"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🔥"]},
+    "agumon":  {"name": "Agumon", "emoji": "🦕", "working": ["🔥", "💥"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🔥"],
+                "evolve": {"at": "adult", "to": "greymon"}},
+    # evolved form: never in the picker (hidden) — you earn it by reaching the
+    # "at" stage above with the base species selected
+    "greymon": {"name": "Greymon", "emoji": "🦖", "working": ["🔥", "💥"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🔥"],
+                "hidden": True},
     "fox":     {"name": "Kit",    "emoji": "🦊", "working": ["✨", "🍃"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🌙"]},
     "alien":   {"name": "Zorp",   "emoji": "👾", "working": ["📡", "⚡"], "waiting": ["❓", "🛸"], "sleeping": ["💤", "🌌"]},
     "turtle":  {"name": "Sage",   "emoji": "🐢", "working": ["🧘", "✨"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🍵"]},
@@ -86,6 +91,21 @@ def stage_for(xp):
     return stage, lo, hi
 
 
+def sprite_for(species_key, stage):
+    """Species key to actually show: follows SPECIES 'evolve' rules that have
+    triggered at this stage (agumon → greymon at adult). Chain-safe."""
+    order = [name for _, name in STAGES]
+    si = order.index(stage) if stage in order else 0
+    seen = set()
+    while species_key not in seen:
+        seen.add(species_key)
+        ev = SPECIES.get(species_key, {}).get("evolve")
+        if not ev or ev["at"] not in order or si < order.index(ev["at"]):
+            break
+        species_key = ev["to"]
+    return species_key
+
+
 def progress_bar(xp, lo, hi, width=5):
     if hi is None:
         return "▰" * width
@@ -109,9 +129,10 @@ def agent_state(transcript_path):
 
 
 def render_pet(state, mode):
-    species = SPECIES.get(state.get("species", DEFAULT_SPECIES), SPECIES[DEFAULT_SPECIES])
     xp = total_xp(state)
     stage, lo, hi = stage_for(xp)
+    key = sprite_for(state.get("species", DEFAULT_SPECIES), stage)
+    species = SPECIES.get(key, SPECIES[DEFAULT_SPECIES])
     frame_i = int(time.time() * 2)
 
     if stage == "egg" and not state.get("hatched"):
@@ -180,6 +201,8 @@ def cli(args):
     state = load_state()
     if args[0] == "species":
         for key, sp in SPECIES.items():
+            if sp.get("hidden"):
+                continue  # evolved forms are earned, not picked
             marker = "←" if key == state.get("species", DEFAULT_SPECIES) else " "
             print("%s %-8s %s %s" % (sp["emoji"], key, sp["name"], marker))
     elif args[0] == "set" and len(args) == 3 and args[1] in ("species", "name"):
@@ -192,7 +215,8 @@ def cli(args):
     elif args[0] == "status":
         xp = total_xp(load_state())
         stage, lo, hi = stage_for(xp)
-        sp = SPECIES.get(state.get("species", DEFAULT_SPECIES), SPECIES[DEFAULT_SPECIES])
+        key = sprite_for(state.get("species", DEFAULT_SPECIES), stage)
+        sp = SPECIES.get(key, SPECIES[DEFAULT_SPECIES])
         name = "???" if stage == "egg" else (state.get("name") or sp["name"])
         print("%s %s — %s, %d XP %s" % (sp["emoji"], name, stage, xp, progress_bar(xp, lo, hi)))
     else:

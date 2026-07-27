@@ -604,7 +604,11 @@ fn draw_pet(area: &gtk::DrawingArea, ctx: &gtk::cairo::Context, st: &St,
     let frame = st.frame;
     let now = now_epoch();
 
-    let sprite_key = if pet.hatched { pet.species.as_str() } else { "egg" };
+    let sprite_key = if pet.hatched {
+        pet.sprite.as_deref().unwrap_or(pet.species.as_str())
+    } else {
+        "egg"
+    };
     let Some(sp) = assets
         .species
         .get(sprite_key)

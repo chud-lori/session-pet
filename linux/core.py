@@ -97,6 +97,24 @@ def jload(text):
 # Port of State.swift — shared .state/state.json (same file as pet.py / Swift).
 
 STAGES = [(0, "egg"), (30, "hatchling"), (200, "adult"), (1000, "legendary")]
+STAGE_ORDER = [name for _, name in STAGES]
+
+# Evolution rules — mirrors SPECIES[...]["evolve"] in pet.py (this file is
+# stdlib-only and standalone, same duplication as STAGES above).
+EVOLVE = {"agumon": ("adult", "greymon")}
+
+
+def sprite_for(species, stage):
+    """Species key to actually show, following triggered EVOLVE rules."""
+    si = STAGE_ORDER.index(stage) if stage in STAGE_ORDER else 0
+    seen = set()
+    while species in EVOLVE and species not in seen:
+        seen.add(species)
+        at, to = EVOLVE[species]
+        if at not in STAGE_ORDER or si < STAGE_ORDER.index(at):
+            break
+        species = to
+    return species
 
 
 def load_state():
@@ -862,6 +880,9 @@ class Core:
             "alert_until": self.alert_until, "excite_until": self.excite_until,
             "pet": {
                 "species": state.get("species") or "cat",
+                # what the face should draw: species + any triggered evolution
+                # ("species" stays raw so the picker keeps its selection)
+                "sprite": sprite_for(state.get("species") or "cat", stage),
                 "name": state.get("name"),
                 "hatched": hatched, "stage": stage,
                 "xp": xp, "stage_lo": lo, "stage_hi": hi, "level": level,

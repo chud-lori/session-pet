@@ -11,6 +11,8 @@ struct Species {
     // optional hand-authored walk cycle: array of frames, each a rows array
     // (same size as `rows`). Absent → procedural leg-shuffle while walking.
     let walkFrames: [[String]]
+    // optional evolution rule: draw species `to` once the pet reaches stage `at`
+    let evolve: (at: String, to: String)?
 }
 
 private func makeSpecies(_ key: String, _ s: [String: Any]) -> Species {
@@ -18,9 +20,13 @@ private func makeSpecies(_ key: String, _ s: [String: Any]) -> Species {
     for (ch, hex) in (s["palette"] as? [String: String]) ?? [:] { pal[ch] = hexColor(hex) }
     let rows = s["rows"] as? [String] ?? []
     let walk = (s["walk"] as? [[String]] ?? []).filter { $0.count == rows.count }
+    var evolve: (at: String, to: String)?
+    if let ev = s["evolve"] as? [String: String], let at = ev["at"], let to = ev["to"] {
+        evolve = (at: at, to: to)
+    }
     return Species(key: key, name: s["name"] as? String ?? key,
                    emoji: s["emoji"] as? String ?? "",
-                   palette: pal, rows: rows, walkFrames: walk)
+                   palette: pal, rows: rows, walkFrames: walk, evolve: evolve)
 }
 
 func loadAssets() -> (order: [String], species: [String: Species]) {
@@ -56,6 +62,21 @@ func loadAssets() -> (order: [String], species: [String: Species]) {
 }
 
 let assets = loadAssets()
+
+// Species key to actually draw: follows `evolve` rules that have triggered at
+// this stage (agumon → greymon at adult). Chain-safe via `seen`.
+func evolvedSprite(_ species: String, stage: String) -> String {
+    let order = stages.map { $0.1 }
+    let si = order.firstIndex(of: stage) ?? 0
+    var key = species
+    var seen = Set<String>()
+    while !seen.contains(key), let ev = assets.species[key]?.evolve,
+          let ai = order.firstIndex(of: ev.at), si >= ai {
+        seen.insert(key)
+        key = ev.to
+    }
+    return key
+}
 
 // MARK: - sprite rendering
 

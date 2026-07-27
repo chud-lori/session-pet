@@ -370,7 +370,10 @@ final class Panel {
         let hatched = (state["hatched"] as? Bool ?? false) || stage != "egg"
         if hatched && stage == "egg" { stage = "hatchling"; lo = 0; hi = 200 }
         let speciesKey = state["species"] as? String ?? "cat"
-        let sp = assets.species[speciesKey] ?? assets.species["cat"]!
+        // default name/emoji follow the evolved form; the picker highlight
+        // below keeps using the raw speciesKey the user selected
+        let sp = assets.species[evolvedSprite(speciesKey, stage: stage)]
+            ?? assets.species["cat"]!
         let level = min(99, 1 + Int((Double(xp) / 10.0).squareRoot()))
         let crown = stage == "legendary" ? "👑 " : ""
         let name = hatched ? (state["name"] as? String ?? sp.name) : "???"

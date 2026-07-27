@@ -253,11 +253,13 @@ impl Panel {
     pub fn refresh(&self, snap: &Snapshot, assets: &Assets) {
         *self.refreshing.borrow_mut() = true;
         let pet = &snap.pet;
+        // default name follows the evolved form (Agumon → "Greymon" at adult)
+        let shown = pet.sprite.as_deref().unwrap_or(&pet.species);
         let sp_name = assets
             .species
-            .get(&pet.species)
+            .get(shown)
             .map(|s| s.name.clone())
-            .unwrap_or_else(|| pet.species.clone());
+            .unwrap_or_else(|| shown.to_string());
         let name = if pet.hatched {
             pet.name.clone().unwrap_or(sp_name)
         } else {

@@ -28,6 +28,10 @@ pub struct Snapshot {
 #[derive(Deserialize, Clone, Default)]
 pub struct Pet {
     pub species: String,
+    // what to draw: species + any triggered evolution (species stays raw so
+    // the picker keeps its selection); older cores omit it
+    #[serde(default)]
+    pub sprite: Option<String>,
     pub name: Option<String>,
     pub hatched: bool,
     pub stage: String,
