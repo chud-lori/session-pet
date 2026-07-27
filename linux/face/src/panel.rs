@@ -19,6 +19,8 @@ pub struct Panel {
     chip: gtk::Label,
     cards: gtk::ListBox,
     species: gtk::ComboBoxText,
+    evo: gtk::ComboBoxText,
+    evo_forms: Rc<RefCell<Vec<String>>>, // last-populated chain, to skip churn
     sound: gtk::CheckButton,
     walk: gtk::CheckButton,
     card_paths: Rc<RefCell<Vec<String>>>,
@@ -185,21 +187,42 @@ impl Panel {
             });
         }
 
-        // outside-click closes, mac-style: any focus loss hides the panel —
-        // EXCEPT while the species dropdown is popped up (its grab briefly
-        // steals focus and would slam the panel shut mid-pick). The pet
-        // window itself never takes focus (set_accept_focus(false)), so
-        // clicking the pet keeps plain toggle semantics.
+        // evolution rollback — hidden until the pet has unlocked >1 form
+        // (agumon → greymon at adult); show_all on panel open must not
+        // resurrect it, so visibility is managed manually in refresh()
+        let evo = gtk::ComboBoxText::new();
+        evo.set_no_show_all(true);
+        let evo_forms: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(vec![]));
         {
-            let combo_open = Rc::new(std::cell::Cell::new(false));
-            {
-                let combo_open = combo_open.clone();
-                species.connect_notify_local(Some("popup-shown"), move |c, _| {
-                    combo_open.set(c.property::<bool>("popup-shown"));
+            let send = send.clone();
+            let refreshing = refreshing.clone();
+            evo.connect_changed(move |c| {
+                if *refreshing.borrow() {
+                    return;
+                }
+                if let Some(id) = c.active_id() {
+                    send(serde_json::json!({"cmd": "set", "key": "form",
+                                            "value": id.as_str()}));
+                }
+            });
+        }
+
+        // outside-click closes, mac-style: any focus loss hides the panel —
+        // EXCEPT while a dropdown is popped up (its grab briefly steals
+        // focus and would slam the panel shut mid-pick). The pet window
+        // itself never takes focus (set_accept_focus(false)), so clicking
+        // the pet keeps plain toggle semantics.
+        {
+            let species_open = Rc::new(std::cell::Cell::new(false));
+            let evo_open = Rc::new(std::cell::Cell::new(false));
+            for (combo, open) in [(&species, &species_open), (&evo, &evo_open)] {
+                let open = open.clone();
+                combo.connect_notify_local(Some("popup-shown"), move |c, _| {
+                    open.set(c.property::<bool>("popup-shown"));
                 });
             }
             window.connect_focus_out_event(move |w, _| {
-                if !combo_open.get() {
+                if !species_open.get() && !evo_open.get() {
                     w.hide();
                 }
                 glib::Propagation::Proceed
@@ -229,6 +252,7 @@ impl Panel {
             });
         }
         sbox.pack_start(&species, false, false, 0);
+        sbox.pack_start(&evo, false, false, 0);
         sbox.pack_start(&sound, false, false, 0);
         sbox.pack_start(&walk, false, false, 0);
         settings.add(&sbox);
@@ -243,6 +267,8 @@ impl Panel {
             chip,
             cards,
             species,
+            evo,
+            evo_forms,
             sound,
             walk,
             card_paths,
@@ -372,6 +398,27 @@ impl Panel {
 
         if self.species.active_id().map(|s| s.to_string()) != Some(pet.species.clone()) {
             self.species.set_active_id(Some(&pet.species));
+        }
+        // evolution rollback dropdown — only once >1 form is unlocked
+        if pet.hatched && pet.forms.len() > 1 {
+            if *self.evo_forms.borrow() != pet.forms {
+                self.evo.remove_all();
+                for key in &pet.forms {
+                    let name = assets
+                        .species
+                        .get(key)
+                        .map(|s| s.name.as_str())
+                        .unwrap_or(key);
+                    self.evo.append(Some(key), name);
+                }
+                *self.evo_forms.borrow_mut() = pet.forms.clone();
+            }
+            if self.evo.active_id().map(|s| s.to_string()) != Some(shown.to_string()) {
+                self.evo.set_active_id(Some(shown));
+            }
+            self.evo.show();
+        } else {
+            self.evo.hide();
         }
         self.sound.set_active(pet.sound);
         self.walk.set_active(pet.walk);

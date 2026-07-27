@@ -632,6 +632,14 @@ class PetWindow:
         state["species"] = key
         state["hatched"] = True  # an explicit pick hatches the egg immediately
         state.pop("name", None)  # revert to the new species' default name
+        state.pop("form", None)  # evolution rollback belongs to the old species
+        pet.save_state(state)
+        self.state = state
+        self.update_modal()
+
+    def choose_form(self, key):
+        state = pet.load_state()
+        state["form"] = key
         pet.save_state(state)
         self.state = state
         self.update_modal()
@@ -710,12 +718,24 @@ class PetWindow:
             c.bind("<Button-1>", lambda _e, k=key: self.choose_species(k))
             self.pick[key] = c
 
+        # evolution rollback — packed by update_modal only once the pet has
+        # unlocked more than one form (e.g. agumon → greymon at adult)
+        self.evo_row = tk.Frame(self.picker_frame, bg=CARD)
+        tk.Label(self.evo_row, text="evolution", bg=CARD, fg=MUTED,
+                 font=("Menlo", 9)).pack(side="left")
+        self.evo_var = tk.StringVar()
+        self.evo_menu = tk.OptionMenu(self.evo_row, self.evo_var, "")
+        self.evo_menu.config(font=("Menlo", 9), highlightthickness=0)
+        self.evo_menu.pack(side="left", padx=(6, 0))
+        self._evo_shown = None  # (chain, shown) cache — rebuild only on change
+
         self.sound_var = tk.BooleanVar(value=self.state.get("sound", True))
-        tk.Checkbutton(self.picker_frame, text="sound when an agent needs me",
-                       variable=self.sound_var, command=self.toggle_sound,
-                       bg=CARD, fg=FG, font=("Menlo", 9), selectcolor=CARD,
-                       activebackground=CARD,
-                       activeforeground=FG).pack(pady=(6, 0), anchor="w")
+        self.sound_check = tk.Checkbutton(
+            self.picker_frame, text="sound when an agent needs me",
+            variable=self.sound_var, command=self.toggle_sound,
+            bg=CARD, fg=FG, font=("Menlo", 9), selectcolor=CARD,
+            activebackground=CARD, activeforeground=FG)
+        self.sound_check.pack(pady=(6, 0), anchor="w")
 
         row = tk.Frame(m, bg=CARD)
         row.pack(pady=(8, 12), padx=14, anchor="w")
@@ -745,8 +765,28 @@ class PetWindow:
         stage, lo, hi = pet.stage_for(xp)
         species_key = state.get("species", pet.DEFAULT_SPECIES)
         hatched = state.get("hatched") or stage != "egg"
-        shown = pet.sprite_for(species_key, stage) if hatched else species_key
+        shown = (pet.sprite_for(species_key, stage, state.get("form"))
+                 if hatched else species_key)
         sp = pet.SPECIES.get(shown, pet.SPECIES[pet.DEFAULT_SPECIES])
+
+        # evolution dropdown: visible only once >1 form is unlocked
+        chain = pet.evolution_chain(species_key, stage) if hatched else []
+        if len(chain) > 1:
+            if self._evo_shown != (chain, shown):
+                self._evo_shown = (chain, shown)
+                menu = self.evo_menu["menu"]
+                menu.delete(0, "end")
+                for k in chain:
+                    nm = pet.SPECIES.get(k, {}).get("name", k)
+                    menu.add_command(label=nm,
+                                     command=lambda k=k: self.choose_form(k))
+                self.evo_var.set(pet.SPECIES.get(shown, {}).get("name", shown))
+            if not self.evo_row.winfo_ismapped():
+                self.evo_row.pack(anchor="w", pady=(6, 0),
+                                  before=self.sound_check)
+        else:
+            self.evo_row.pack_forget()
+            self._evo_shown = None
         name = (state.get("name") or sp["name"]) if hatched else "???"
         crown = "👑 " if stage == "legendary" else ""
         level = min(99, 1 + int((xp / 10.0) ** 0.5))
@@ -863,7 +903,8 @@ class PetWindow:
         stage, _, _ = pet.stage_for(xp)
         species_key = state.get("species", pet.DEFAULT_SPECIES)
         hatched = state.get("hatched") or stage != "egg"
-        sprite_key = pet.sprite_for(species_key, stage) if hatched else "egg"
+        sprite_key = (pet.sprite_for(species_key, stage, state.get("form"))
+                      if hatched else "egg")
 
         bob_period = {"working": 2, "waiting": 6, "sleeping": 10}[self.mode]
         bob = ((self.frame // bob_period) % 2) * (self.scale // 2)

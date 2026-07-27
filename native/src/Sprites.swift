@@ -63,19 +63,28 @@ func loadAssets() -> (order: [String], species: [String: Species]) {
 
 let assets = loadAssets()
 
-// Species key to actually draw: follows `evolve` rules that have triggered at
-// this stage (agumon → greymon at adult). Chain-safe via `seen`.
-func evolvedSprite(_ species: String, stage: String) -> String {
+// Forms unlocked at this stage, base species first: `evolve` rules that have
+// triggered (agumon → [agumon, greymon] at adult). Chain-safe.
+func evolutionChain(_ species: String, stage: String) -> [String] {
     let order = stages.map { $0.1 }
     let si = order.firstIndex(of: stage) ?? 0
+    var chain = [species]
     var key = species
-    var seen = Set<String>()
-    while !seen.contains(key), let ev = assets.species[key]?.evolve,
-          let ai = order.firstIndex(of: ev.at), si >= ai {
-        seen.insert(key)
+    while let ev = assets.species[key]?.evolve,
+          let ai = order.firstIndex(of: ev.at), si >= ai,
+          !chain.contains(ev.to) {
+        chain.append(ev.to)
         key = ev.to
     }
-    return key
+    return chain
+}
+
+// Species key to actually draw: the latest unlocked evolution, unless the
+// user rolled back to an earlier unlocked form (state["form"]).
+func evolvedSprite(_ species: String, stage: String, form: String? = nil) -> String {
+    let chain = evolutionChain(species, stage: stage)
+    if let form, chain.contains(form) { return form }
+    return chain.last!
 }
 
 // MARK: - sprite rendering

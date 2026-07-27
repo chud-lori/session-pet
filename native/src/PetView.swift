@@ -80,7 +80,9 @@ final class PetView: NSView {
         let hatched = (state["hatched"] as? Bool ?? false) || stage != "egg"
         if hatched && stage == "egg" { stage = "hatchling" }
         let speciesKey = state["species"] as? String ?? "cat"
-        let spriteKey = hatched ? evolvedSprite(speciesKey, stage: stage) : "egg"
+        let spriteKey = hatched
+            ? evolvedSprite(speciesKey, stage: stage, form: state["form"] as? String)
+            : "egg"
         let sp = assets.species[spriteKey] ?? assets.species["cat"]!
 
         // QUIET BASELINE, LOUD ALERT: constant bobbing trained the eye to

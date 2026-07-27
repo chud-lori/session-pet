@@ -179,8 +179,12 @@ final class Panel {
                               target: nil, action: nil)
     let settingsBox = NSStackView()
     let settingsToggle = NSButton(title: "settings ▸", target: nil, action: nil)
+    let evoRow = NSStackView()
+    let evoPopup = NSPopUpButton()
+    private var evoKeys: [String] = []  // popup index → species key
     var pickButtons: [String: NSButton] = [:]
     var onPick: ((String) -> Void)?
+    var onForm: ((String) -> Void)?
     var onSound: ((Bool) -> Void)?
     var onWalk: ((Bool) -> Void)?
 
@@ -265,6 +269,20 @@ final class Panel {
             row!.addArrangedSubview(b)
         }
 
+        // evolution rollback — hidden until the pet has unlocked >1 form
+        // (agumon → greymon at adult); refresh() manages visibility
+        let evoLabel = NSTextField(labelWithString: "evolution")
+        evoLabel.font = NSFont(name: "Menlo", size: 10)
+        evoLabel.textColor = cMuted
+        evoPopup.font = NSFont(name: "Menlo", size: 10)
+        evoPopup.target = self
+        evoPopup.action = #selector(formPicked(_:))
+        evoRow.orientation = .horizontal
+        evoRow.spacing = 6
+        evoRow.addArrangedSubview(evoLabel)
+        evoRow.addArrangedSubview(evoPopup)
+        evoRow.isHidden = true
+
         soundCheck.attributedTitle = Panel.buttonTitle("sound when an agent needs me")
         soundCheck.target = self
         soundCheck.action = #selector(soundToggled(_:))
@@ -282,6 +300,7 @@ final class Panel {
         settingsBox.alignment = .leading
         settingsBox.spacing = 6
         settingsBox.addArrangedSubview(grid)
+        settingsBox.addArrangedSubview(evoRow)
         settingsBox.addArrangedSubview(soundCheck)
         settingsBox.addArrangedSubview(walkCheck)
         settingsBox.addArrangedSubview(quit)
@@ -355,6 +374,11 @@ final class Panel {
         if let key = sender.identifier?.rawValue { onPick?(key) }
     }
 
+    @objc private func formPicked(_ sender: NSPopUpButton) {
+        let i = sender.indexOfSelectedItem
+        if evoKeys.indices.contains(i) { onForm?(evoKeys[i]) }
+    }
+
     @objc private func soundToggled(_ sender: NSButton) {
         onSound?(sender.state == .on)
     }
@@ -370,10 +394,12 @@ final class Panel {
         let hatched = (state["hatched"] as? Bool ?? false) || stage != "egg"
         if hatched && stage == "egg" { stage = "hatchling"; lo = 0; hi = 200 }
         let speciesKey = state["species"] as? String ?? "cat"
-        // default name/emoji follow the evolved form; the picker highlight
-        // below keeps using the raw speciesKey the user selected
-        let sp = assets.species[evolvedSprite(speciesKey, stage: stage)]
-            ?? assets.species["cat"]!
+        // default name/emoji follow the evolved form (honoring an evolution
+        // rollback); the picker highlight below keeps using the raw
+        // speciesKey the user selected
+        let shownKey = evolvedSprite(speciesKey, stage: stage,
+                                     form: state["form"] as? String)
+        let sp = assets.species[shownKey] ?? assets.species["cat"]!
         let level = min(99, 1 + Int((Double(xp) / 10.0).squareRoot()))
         let crown = stage == "legendary" ? "👑 " : ""
         let name = hatched ? (state["name"] as? String ?? sp.name) : "???"
@@ -469,6 +495,22 @@ final class Panel {
         sessionDoc.frame = NSRect(x: 0, y: 0, width: 332,
                                   height: max(contentH > 300 ? y : contentH, 18))
         sessionHeight.constant = min(contentH, 300)
+
+        // evolution rollback dropdown — only once >1 form is unlocked
+        let chain = hatched ? evolutionChain(speciesKey, stage: stage) : []
+        evoRow.isHidden = chain.count < 2
+        if chain.count > 1 {
+            if chain != evoKeys {
+                evoPopup.removeAllItems()
+                for k in chain {
+                    evoPopup.addItem(withTitle: assets.species[k]?.name ?? k)
+                }
+                evoKeys = chain
+            }
+            if let i = chain.firstIndex(of: shownKey) {
+                evoPopup.selectItem(at: i)
+            }
+        }
 
         soundCheck.state = (state["sound"] as? Bool ?? true) ? .on : .off
         walkCheck.state = (state["walk"] as? Bool ?? true) ? .on : .off
