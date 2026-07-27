@@ -1,0 +1,66 @@
+{
+  "name": "Kuro",
+  "emoji": "\ud83d\udc08\u200d\u2b1b",
+  "palette": {
+    "X": "#3f3d4a",
+    "s": "#4a4857",
+    "d": "#2c2a35",
+    "o": "#f2c14e",
+    "w": "#fff4c2",
+    "p": "#e0819a",
+    "k": "#232029"
+  },
+  "rows": [
+    "..kk........kk..",
+    ".kXXk......kXXk.",
+    ".kXpXk....kXpXk.",
+    ".kXXXXkkkkXXXXk.",
+    ".kXXXXXXXXXXXXk.",
+    "kXXXXXXXXXXXXXXk",
+    "kXXooXXXXXXooXXk",
+    "kXXowXXXXXXowXXk",
+    "kXXXXXXkppkXXXXk",
+    "kdXXXXXXXXXXXXdk",
+    ".kXXXXXXXXXXXXk.",
+    "..kXXXXXXXXXXk..",
+    "..kXXXXXXXXXXk..",
+    "..kdXXk..kXXdk..",
+    "...kk......kk..."
+  ],
+  "walk": [
+    [
+      "..kk........kk..",
+      ".kXXk......kXXk.",
+      ".kXpXk....kXpXk.",
+      ".kXXXXkkkkXXXXk.",
+      ".kXXXXXXXXXXXXk.",
+      "kXXXXXXXXXXXXXXk",
+      "kXXooXXXXXXooXXk",
+      "kXXowXXXXXXowXXk",
+      "kXXXXXXkppkXXXXk",
+      "kdXXXXXXXXXXXXdk",
+      ".kXXXXXXXXXXXXk.",
+      "..kXXXXXXXXXXk..",
+      "..kXXXXXXXXXXk..",
+      "..kdXXk..kXXdk..",
+      "..kk........kk.."
+    ],
+    [
+      "..kk........kk..",
+      ".kXXk......kXXk.",
+      ".kXpXk....kXpXk.",
+      ".kXXXXkkkkXXXXk.",
+      ".kXXXXXXXXXXXXk.",
+      "kXXXXXXXXXXXXXXk",
+      "kXXooXXXXXXooXXk",
+      "kXXowXXXXXXowXXk",
+      "kXXXXXXkppkXXXXk",
+      "kdXXXXXXXXXXXXdk",
+      ".kXXXXXXXXXXXXk.",
+      "..kXXXXXXXXXXk..",
+      "..kXXXXXXXXXXk..",
+      "..kdXXk..kXXdk..",
+      "....kk....kk...."
+    ]
+  ]
+}
