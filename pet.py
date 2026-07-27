@@ -35,6 +35,7 @@ SPECIES = {
     "crab":    {"name": "Clicky", "emoji": "🦀", "working": ["🔧", "⚙️"], "waiting": ["❓", "🫧"], "sleeping": ["💤", "🌊"]},
     "octopus": {"name": "Inky",   "emoji": "🐙", "working": ["⌨️", "🖋️"], "waiting": ["❓", "🫧"], "sleeping": ["💤", "🌊"]},
     "dino":    {"name": "Rex",    "emoji": "🦖", "working": ["⚡", "💥"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🌋"]},
+    "agumon":  {"name": "Agumon", "emoji": "🦕", "working": ["🔥", "💥"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🔥"]},
     "fox":     {"name": "Kit",    "emoji": "🦊", "working": ["✨", "🍃"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🌙"]},
     "alien":   {"name": "Zorp",   "emoji": "👾", "working": ["📡", "⚡"], "waiting": ["❓", "🛸"], "sleeping": ["💤", "🌌"]},
     "turtle":  {"name": "Sage",   "emoji": "🐢", "working": ["🧘", "✨"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🍵"]},

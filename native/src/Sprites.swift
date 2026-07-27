@@ -76,6 +76,9 @@ func drawSprite(_ key: String, scale: CGFloat, at origin: NSPoint, eyesClosed: B
     }
     let rowCount = rows.count
     let colCount = rows.first?.count ?? 16
+    // density normalization: `scale` is for 16px-wide maps; denser maps
+    // (23px agumon) draw smaller cells to keep the same on-screen footprint
+    let scale = scale * 16 / CGFloat(colCount)
     // snap every cell edge to whole pixels: bob/hop offsets are fractional,
     // and unsnapped rects antialias into hairline seams between rows —
     // visible as "stripes" on 1x external monitors. Adjacent cells share the
@@ -94,7 +97,7 @@ func drawSprite(_ key: String, scale: CGFloat, at origin: NSPoint, eyesClosed: B
         for (x, ch) in row.enumerated() {
             var c = String(ch)
             if c == "." { continue }
-            if eyesClosed && (c == "o" || c == "w") { c = "X" }
+            if eyesClosed && (c == "o" || c == "w" || c == "g") { c = "X" }
             guard let color = sp.palette[c] else { continue }
             color.setFill()
             // mirror x when the pet walks left; +1 offsets into xs, which
@@ -108,8 +111,9 @@ func drawSprite(_ key: String, scale: CGFloat, at origin: NSPoint, eyesClosed: B
 
 func spriteImage(_ key: String, scale: CGFloat) -> NSImage {
     guard let sp = assets.species[key] else { return NSImage() }
-    let w = CGFloat(sp.rows.first?.count ?? 16) * scale
-    let h = CGFloat(sp.rows.count) * scale
+    let es = scale * 16 / CGFloat(sp.rows.first?.count ?? 16)
+    let w = CGFloat(sp.rows.first?.count ?? 16) * es
+    let h = CGFloat(sp.rows.count) * es
     let img = NSImage(size: NSSize(width: w, height: h))
     img.lockFocus()
     drawSprite(key, scale: scale, at: .zero, eyesClosed: false)

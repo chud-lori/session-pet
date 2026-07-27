@@ -6,7 +6,7 @@ machine (macOS and Linux) —
 it bounces while agents work, dings the moment one needs your input (including
 permission prompts, via an optional hook), flags sessions that stall mid-turn,
 shows live per-session cards (project, current tool, context size, last
-message), and levels up across 8 species as you ship. Native on both
+message), and levels up across 9 species as you ship. Native on both
 platforms — Swift/AppKit on macOS, Rust/GTK on Linux — same pet, same XP,
 same `.state/state.json`. No Electron, no dependencies.
 
@@ -195,8 +195,10 @@ count, last active project, sound toggle, and a **visual sprite picker** (click
 a portrait to adopt it). **Drag** to move it anywhere. **Right-click** to quit.
 
 A brand-new pet starts as an egg; picking a sprite in the modal hatches it
-instantly (30 XP hatches it automatically too). Sprites are 16px chibi pixel
-maps in `pet_window.py` (`PIXELS`) — add your own species by adding a map + an
+instantly (30 XP hatches it automatically too). Sprites are chibi pixel maps
+in `pet_window.py` (`PIXELS`) — 16px wide baseline; denser maps (the 32px
+agumon) render at a proportionally smaller cell size so every species keeps
+the same on-screen footprint. Add your own species by adding a map + an
 entry in `pet.py`'s `SPECIES`. Default window scale is 4 (compact); use
 `--scale 6` for a bigger pet.
 
@@ -207,7 +209,7 @@ Start it at login (optional): add a LaunchAgent or just put
   *working*, perks up when it's *waiting for you*, and *sleeps* when the session idles.
 - **Grows across sessions**: earns XP from lines of code (+ session cost), persisting in
   `.state/state.json`. Stages: 🥚 egg → hatchling → adult → 👑 legendary.
-- **8 species**: cat, dragon, crab, octopus, dino, fox, alien, turtle.
+- **9 species**: cat, dragon, crab, octopus, dino, agumon, fox, alien, turtle.
 - Stdlib-only Python, never breaks the statusline (always exits 0, falls back to 🐾).
 
 ## Install
@@ -239,9 +241,10 @@ pet launch and added to the species picker (no rebuild, no export step):
   `{"name": "Slimey", "emoji": "🫧", "palette": {"X": "#7ee8a2", …},
   "rows": ["....kkkk....", …]}`. Rows are pixel strings; each char is a
   palette key.
-- **Conventions**: `.` = transparent; `o`/`w` are eye pixels (the pet redraws
-  them as `X` when blinking, so use `X` as the main body color to make closed
-  eyes look right). Built-ins are 16px wide.
+- **Conventions**: `.` = transparent; `o`/`w`/`g` are eye pixels (the pet
+  redraws them as `X` when blinking, so use `X` as the main body color to make
+  closed eyes look right). Built-ins are 16px wide (agumon is 32px); wider
+  maps auto-scale down to the 16px footprint.
 - Malformed files (bad JSON, missing/empty `rows`) are skipped, never crash;
   run with `SESSION_PET_LOG=1` to see skips in `/tmp/session-pet.log`.
 - `sprites/example-slime.json` ships as a working template.

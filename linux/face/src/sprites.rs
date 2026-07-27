@@ -148,6 +148,9 @@ pub fn draw_sprite(
     }
     let row_count = rows.len() as i64;
     let col_count = rows.first().map_or(16, |r| r.chars().count() as i64);
+    // density normalization: `scale` is for 16px-wide maps; denser maps
+    // (23px agumon) draw smaller cells to keep the same on-screen footprint
+    let scale = scale * 16.0 / col_count as f64;
     // snap cell edges to whole pixels — unsnapped rects antialias into
     // hairline seams between rows (same fix as the Mac renderer)
     let xs: Vec<f64> = (-1..=col_count + 1)
@@ -168,7 +171,7 @@ pub fn draw_sprite(
             if c == '.' {
                 continue;
             }
-            if eyes_closed && (c == 'o' || c == 'w') {
+            if eyes_closed && (c == 'o' || c == 'w' || c == 'g') {
                 c = 'X';
             }
             let Some(&(r, g, b)) = sp.palette.get(&c) else { continue };

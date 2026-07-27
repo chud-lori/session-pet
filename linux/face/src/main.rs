@@ -636,8 +636,10 @@ fn draw_pet(area: &gtk::DrawingArea, ctx: &gtk::cairo::Context, st: &St,
         hop = (phase * std::f64::consts::PI).sin().abs() * 1.2 * s;
     }
 
+    // draw_sprite density-normalizes: any map renders 16 baseline cells wide
+    let es = s * 16.0 / sp.rows.first().map_or(16.0, |r| r.chars().count() as f64);
     let rows_n = sp.rows.len() as f64;
-    let sprite_w = sp.rows.first().map_or(16.0, |r| r.chars().count() as f64) * s;
+    let sprite_w = 16.0 * s;
     let ox = (w - sprite_w) / 2.0;
     let base_y = 3.5 * s; // above caption + dots (distance from BOTTOM)
 
@@ -651,7 +653,7 @@ fn draw_pet(area: &gtk::DrawingArea, ctx: &gtk::cairo::Context, st: &St,
     ctx.restore().ok();
 
     let blink = mode == "sleeping" || frame % 16 == 0;
-    let sprite_top = h - base_y - rows_n * s - bob - hop;
+    let sprite_top = h - base_y - rows_n * es - bob - hop;
     sprites::draw_sprite(
         ctx, sp, s, ox, sprite_top, blink,
         (st.facing < 0.0) != wiggle,
@@ -659,7 +661,7 @@ fn draw_pet(area: &gtk::DrawingArea, ctx: &gtk::cairo::Context, st: &St,
     );
 
     // effects above the sprite
-    let top_y = h - base_y - rows_n * s; // cairo y of the sprite's crown
+    let top_y = h - base_y - rows_n * es; // cairo y of the sprite's crown
     if now < snap.alert_until || snap.needs_attention {
         puts(ctx, "!", w - 3.0 * s, top_y + s, C_WARN, s + 6.0, true);
     } else if mode == "working" {
