@@ -11,7 +11,10 @@ if [[ "$(uname -s)" == "Linux" ]]; then
   [[ -x "$BIN" ]] || BIN="$HOME/.local/bin/session-pet"
 else
   PROC="SessionPet"
-  BIN="$(cd "$(dirname "$0")" && pwd)/native/SessionPet"
+  # prefer the .app — only a bundled app can hold Automation permission
+  ROOT="$(cd "$(dirname "$0")" && pwd)"
+  BIN="$ROOT/native/SessionPet.app/Contents/MacOS/SessionPet"
+  [[ -x "$BIN" ]] || BIN="$ROOT/native/SessionPet"
 fi
 case "${1:-start}" in
   stop)   pkill -x "$PROC" 2>/dev/null && echo "pet stopped" || echo "pet was not running" ;;

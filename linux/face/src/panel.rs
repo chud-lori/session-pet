@@ -4,6 +4,7 @@
 
 use crate::proto::{fmt_age, fmt_tokens, Snapshot};
 use crate::sprites::Assets;
+use gtk::gdk;
 use gtk::glib;
 use gtk::prelude::*;
 use std::cell::RefCell;
@@ -21,9 +22,7 @@ pub struct Panel {
     xp_bar: gtk::ProgressBar,
     chip: gtk::Label,
     cards: gtk::ListBox,
-    /// per-row jump payload: (terminal pid chain, title needles most
-    /// specific first) — parallel to card_paths
-    card_jumps: Rc<RefCell<Vec<(Vec<i32>, Vec<String>)>>>,
+    send: CmdSender,
     species_btns: Vec<(String, gtk::Button)>,
     sound: gtk::CheckButton,
     walk: gtk::CheckButton,
@@ -145,29 +144,10 @@ impl Panel {
         scroll.add(&cards);
         root.pack_start(&scroll, true, true, 0);
 
-        let card_paths: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(vec![]));
-        let card_jumps: Rc<RefCell<Vec<(Vec<i32>, Vec<String>)>>> =
-            Rc::new(RefCell::new(vec![]));
-        {
-            let send = send.clone();
-            let card_paths = card_paths.clone();
-            let card_jumps = card_jumps.clone();
-            cards.connect_row_activated(move |_, row| {
-                let idx = row.index();
-                if idx < 0 {
-                    return;
-                }
-                if let Some(path) = card_paths.borrow().get(idx as usize) {
-                    // clicking a card = you saw that session (per-card ack)
-                    send(serde_json::json!({"cmd": "ack", "path": path}));
-                }
-                // …and jump to its terminal: the whole card is the target,
-                // which a 16px arrow never was
-                if let Some((pids, needles)) = card_jumps.borrow().get(idx as usize) {
-                    crate::jump_to_terminal(pids, needles);
-                }
-            });
-        }
+        // NB: clicks are handled per-card by an EventBox in refresh(), not by
+        // ListBox row-activated — a ListBox in SelectionMode::None does not
+        // reliably activate rows, and an EventBox owns its own GdkWindow so
+        // it always gets button events.
 
         // outside-click closes, mac-style: any focus loss hides the panel.
         // The pet window itself never takes focus (set_accept_focus(false)),
@@ -274,7 +254,7 @@ impl Panel {
             xp_bar,
             chip,
             cards,
-            card_jumps,
+            send,
             species_btns,
             sound,
             walk,
@@ -347,8 +327,6 @@ impl Panel {
         }
         let mut paths = self.card_paths.borrow_mut();
         paths.clear();
-        let mut jumps = self.card_jumps.borrow_mut();
-        jumps.clear();
         for s in &snap.sessions {
             let row = gtk::ListBoxRow::new();
             row.set_margin_bottom(8);
@@ -397,17 +375,37 @@ impl Panel {
             card.pack_start(&title, false, false, 0);
             card.pack_start(&doing, false, false, 0);
             card.pack_start(&meta, false, false, 0);
-            row.add(&card);
+            // EventBox: gives the card its own GdkWindow so a plain click is
+            // delivered here regardless of ListBox selection/activation rules
+            let hit = gtk::EventBox::new();
+            hit.set_above_child(false);
+            hit.set_visible_window(false);
+            hit.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
+            hit.add(&card);
+            row.add(&hit);
+            {
+                // needles, most specific first: Claude Code writes the
+                // session title into the terminal title, so it beats the dir
+                let mut needles = vec![s.label.clone()];
+                if let Some(dir) = s.cwd.as_deref().and_then(|c| c.rsplit('/').next()) {
+                    needles.push(dir.to_string());
+                }
+                needles.push(s.project.clone());
+                let pids = s.term_pids.clone();
+                let path = s.path.clone();
+                let send = self.send.clone();
+                hit.connect_button_release_event(move |_, ev| {
+                    if ev.button() != 1 {
+                        return glib::Propagation::Proceed;
+                    }
+                    // click = you saw this session, and take me to it
+                    send(serde_json::json!({"cmd": "ack", "path": path}));
+                    crate::jump_to_terminal(&pids, &needles);
+                    glib::Propagation::Stop
+                });
+            }
             self.cards.add(&row);
             paths.push(s.path.clone());
-            // needles, most specific first: Claude Code writes the session
-            // title into the terminal title, so it beats the directory name
-            let mut needles = vec![s.label.clone()];
-            if let Some(dir) = s.cwd.as_deref().and_then(|c| c.rsplit('/').next()) {
-                needles.push(dir.to_string());
-            }
-            needles.push(s.project.clone());
-            jumps.push((s.term_pids.clone(), needles));
         }
         self.cards.show_all();
 

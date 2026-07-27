@@ -255,8 +255,11 @@ def refresh_open_sessions(sessions=()):
         argv = _proc_cmdline(pid)
         if not argv:
             continue
-        exe = os.path.basename(argv[0])
-        if exe not in ("claude", "codex"):
+        # argv[0] is the agent only for native installs; an npm install runs
+        # it as `node …/bin/claude`, and wrappers/shims add more layers — so
+        # look for the agent anywhere in the leading arguments
+        if not any(os.path.basename(a) in ("claude", "codex")
+                   for a in argv[:3]):
             continue
         resume = None
         if "--resume" in argv:
@@ -297,6 +300,8 @@ def refresh_open_sessions(sessions=()):
             pid = ppid
         procs[sess["path"]] = {**match, "chain": chain}
     agent_procs = procs
+    log(f"agents: {len(candidates)} found, {len(procs)} matched to sessions; "
+        f"cwds={[c['cwd'] for c in candidates]}")
 
 
 # the session's START directory = the cwd on the earliest events; immutable,
