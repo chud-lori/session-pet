@@ -1,6 +1,6 @@
-//! Session panel — compact port of native/src/Panel.swift: header with
-//! XP progress, per-session cards (click = acknowledge), and settings
-//! (species picker, sound, walk).
+//! Session panel — port of native/src/Panel.swift's design: header with XP
+//! progress + mode chip, rounded per-session cards (tinted project pill,
+//! title, status; click = acknowledge), and settings.
 
 use crate::proto::{fmt_age, fmt_tokens, Snapshot};
 use crate::sprites::Assets;
@@ -14,8 +14,9 @@ pub type CmdSender = Rc<dyn Fn(serde_json::Value)>;
 pub struct Panel {
     pub window: gtk::Window,
     header: gtk::Label,
+    sub: gtk::Label,
     xp_bar: gtk::ProgressBar,
-    mode_line: gtk::Label,
+    chip: gtk::Label,
     cards: gtk::ListBox,
     species: gtk::ComboBoxText,
     sound: gtk::CheckButton,
@@ -62,6 +63,24 @@ fn project_color(name: &str) -> String {
     )
 }
 
+// project pill: colored text on a translucent tint of the same color —
+// per-widget CSS provider, since the tint is per-project
+fn badge_label(project: &str) -> gtk::Label {
+    let l = gtk::Label::new(Some(project));
+    l.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    l.set_max_width_chars(18);
+    let ctx = l.style_context();
+    ctx.add_class("badge");
+    let color = project_color(project);
+    let css = gtk::CssProvider::new();
+    let _ = css.load_from_data(
+        format!(".badge {{ color: {color}; background-color: alpha({color}, 0.16); }}")
+            .as_bytes(),
+    );
+    ctx.add_provider(&css, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
+    l
+}
+
 impl Panel {
     pub fn new(assets: &Assets, send: CmdSender) -> Self {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
@@ -74,7 +93,7 @@ impl Panel {
         // no position() math, works on Mutter/XWayland where manual moves
         // right after show_all race the map
         window.set_position(gtk::WindowPosition::Mouse);
-        window.set_default_size(330, -1);
+        window.set_default_size(340, -1);
         window.style_context().add_class("pet-panel");
         // closing via the WM must hide, not destroy — the panel is reused
         window.connect_delete_event(|w, _| {
@@ -91,19 +110,27 @@ impl Panel {
         });
 
         let root = gtk::Box::new(gtk::Orientation::Vertical, 8);
-        root.set_margin_top(12);
+        root.set_margin_top(14);
         root.set_margin_bottom(12);
-        root.set_margin_start(12);
-        root.set_margin_end(12);
+        root.set_margin_start(14);
+        root.set_margin_end(14);
 
         let header = gtk::Label::new(None);
         header.set_xalign(0.0);
+        let sub = gtk::Label::new(None);
+        sub.set_xalign(0.0);
+        sub.style_context().add_class("dim");
         let xp_bar = gtk::ProgressBar::new();
-        let mode_line = gtk::Label::new(None);
-        mode_line.set_xalign(0.0);
+        // mode chip ("all idle" / "2 working" / "1 need you") — pill that
+        // must not stretch to full width
+        let chip = gtk::Label::new(None);
+        chip.style_context().add_class("chip");
+        let chip_row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        chip_row.pack_start(&chip, false, false, 0);
         root.pack_start(&header, false, false, 0);
-        root.pack_start(&xp_bar, false, false, 0);
-        root.pack_start(&mode_line, false, false, 0);
+        root.pack_start(&sub, false, false, 0);
+        root.pack_start(&xp_bar, false, false, 2);
+        root.pack_start(&chip_row, false, false, 4);
 
         let cards = gtk::ListBox::new();
         cards.set_selection_mode(gtk::SelectionMode::None);
@@ -111,7 +138,7 @@ impl Panel {
             .hscrollbar_policy(gtk::PolicyType::Never)
             .vscrollbar_policy(gtk::PolicyType::Automatic)
             .propagate_natural_height(true)
-            .max_content_height(420)
+            .max_content_height(440)
             .build();
         scroll.add(&cards);
         root.pack_start(&scroll, true, true, 0);
@@ -135,6 +162,7 @@ impl Panel {
         let refreshing = Rc::new(RefCell::new(false));
         let settings = gtk::Expander::new(Some("settings ▸"));
         let sbox = gtk::Box::new(gtk::Orientation::Vertical, 6);
+        sbox.set_margin_top(6);
         let species = gtk::ComboBoxText::new();
         for key in &assets.order {
             let name = assets
@@ -156,13 +184,14 @@ impl Panel {
                 }
             });
         }
+
         // outside-click closes, mac-style: any focus loss hides the panel —
         // EXCEPT while the species dropdown is popped up (its grab briefly
         // steals focus and would slam the panel shut mid-pick). The pet
         // window itself never takes focus (set_accept_focus(false)), so
         // clicking the pet keeps plain toggle semantics.
         {
-            let combo_open = std::rc::Rc::new(std::cell::Cell::new(false));
+            let combo_open = Rc::new(std::cell::Cell::new(false));
             {
                 let combo_open = combo_open.clone();
                 species.connect_notify_local(Some("popup-shown"), move |c, _| {
@@ -203,14 +232,15 @@ impl Panel {
         sbox.pack_start(&sound, false, false, 0);
         sbox.pack_start(&walk, false, false, 0);
         settings.add(&sbox);
-        root.pack_start(&settings, false, false, 0);
+        root.pack_start(&settings, false, false, 2);
 
         window.add(&root);
         Panel {
             window,
             header,
+            sub,
             xp_bar,
-            mode_line,
+            chip,
             cards,
             species,
             sound,
@@ -235,35 +265,49 @@ impl Panel {
         };
         let crown = if pet.stage == "legendary" { "★ " } else { "" };
         self.header.set_markup(&format!(
-            "<b>{}{} · Lv.{}</b>  <span foreground='#7f849c'>{} · {} xp</span>",
+            "<span size='large'><b>{}{} · Lv.{}</b></span>",
             crown,
             glib::markup_escape_text(&name),
-            pet.level,
-            pet.stage,
-            pet.xp
+            pet.level
         ));
         match pet.stage_hi {
             Some(hi) if hi > pet.stage_lo => {
+                self.sub.set_text(&format!(
+                    "{} · {} XP · {} to next stage",
+                    pet.stage,
+                    pet.xp,
+                    hi - pet.xp
+                ));
                 self.xp_bar.set_visible(true);
                 self.xp_bar.set_fraction(
                     ((pet.xp - pet.stage_lo) as f64 / (hi - pet.stage_lo) as f64)
                         .clamp(0.0, 1.0),
                 );
             }
-            _ => self.xp_bar.set_visible(false),
-        }
-        let n_input = snap.sessions.iter().filter(|s| s.phase == "input").count();
-        self.mode_line.set_markup(&format!(
-            "<span foreground='#7f849c'>{} · {} session{}{}</span>",
-            snap.mode,
-            snap.sessions.len(),
-            if snap.sessions.len() == 1 { "" } else { "s" },
-            if n_input > 0 {
-                format!(" · <span foreground='#f28ca8'>{n_input} need you</span>")
-            } else {
-                String::new()
+            _ => {
+                self.sub.set_text(&format!("{} · {} XP · max stage", pet.stage, pet.xp));
+                self.xp_bar.set_visible(true);
+                self.xp_bar.set_fraction(1.0);
             }
-        ));
+        }
+
+        // mode chip, most urgent first
+        let n = |p: &str| snap.sessions.iter().filter(|s| s.phase == p).count();
+        let (n_input, n_ready, n_stalled) = (n("input"), n("ready"), n("stalled"));
+        let n_active = n("working") + n("busy");
+        let (chip_text, chip_color) = if n_input > 0 {
+            (format!("{n_input} need you"), "#f28ca8")
+        } else if n_stalled > 0 {
+            (format!("{n_stalled} stalled"), "#d4a373")
+        } else if n_active > 0 {
+            (format!("{n_active} working"), "#a6e3a1")
+        } else if n_ready > 0 {
+            (format!("{n_ready} ready"), "#ffd166")
+        } else {
+            ("all idle".to_string(), "#7f849c")
+        };
+        self.chip
+            .set_markup(&format!("<span foreground='{chip_color}'>{chip_text}</span>"));
 
         for child in self.cards.children() {
             self.cards.remove(&child);
@@ -272,28 +316,52 @@ impl Panel {
         paths.clear();
         for s in &snap.sessions {
             let row = gtk::ListBoxRow::new();
-            let card = gtk::Box::new(gtk::Orientation::Vertical, 2);
+            row.set_margin_bottom(8);
+            let card = gtk::Box::new(gtk::Orientation::Vertical, 3);
             card.style_context().add_class("card");
-            let top = gtk::Label::new(None);
-            top.set_xalign(0.0);
-            top.set_ellipsize(gtk::pango::EllipsizeMode::End);
-            let ctx = s.ctx.map(|c| format!(" · {}", fmt_tokens(c))).unwrap_or_default();
-            top.set_markup(&format!(
-                "<span foreground='{}'>●</span> <span foreground='{}'><b>{}</b></span> \
-                 <span foreground='#7f849c'>{} · {}{}</span>",
-                phase_color(&s.phase),
-                project_color(&s.project),
-                glib::markup_escape_text(&s.project),
-                s.provider,
-                fmt_age(s.age),
-                ctx
+            if s.phase == "input" {
+                card.style_context().add_class("card-input");
+            }
+            // top: project pill left, age right
+            let top = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+            top.pack_start(&badge_label(&s.project), false, false, 0);
+            let age = gtk::Label::new(Some(&fmt_age(s.age)));
+            age.style_context().add_class("dim");
+            top.pack_end(&age, false, false, 0);
+            // title: the session's name (ai-title / rename), like the mac card
+            let title_text = if s.label.is_empty() { &s.project } else { &s.label };
+            let title = gtk::Label::new(None);
+            title.set_markup(&format!(
+                "<b>{}</b>",
+                glib::markup_escape_text(title_text)
             ));
-            let doing = gtk::Label::new(Some(&s.doing));
+            title.set_xalign(0.0);
+            title.set_ellipsize(gtk::pango::EllipsizeMode::End);
+            // status line, phase-colored for anything needing eyes
+            let doing = gtk::Label::new(None);
+            match s.phase.as_str() {
+                "input" | "ready" | "stalled" => doing.set_markup(&format!(
+                    "<span foreground='{}'>{}</span>",
+                    phase_color(&s.phase),
+                    glib::markup_escape_text(&s.doing)
+                )),
+                _ => {
+                    doing.set_text(&s.doing);
+                    doing.style_context().add_class("dim");
+                }
+            }
             doing.set_xalign(0.0);
             doing.set_ellipsize(gtk::pango::EllipsizeMode::End);
-            doing.style_context().add_class("dim");
+            // meta: provider · ctx, tiny and dim (mac shows on expand;
+            // one compact line here keeps the info without the interaction)
+            let ctx = s.ctx.map(|c| format!(" · ctx {}", fmt_tokens(c))).unwrap_or_default();
+            let meta = gtk::Label::new(Some(&format!("{}{}", s.provider, ctx)));
+            meta.set_xalign(0.0);
+            meta.style_context().add_class("meta");
             card.pack_start(&top, false, false, 0);
+            card.pack_start(&title, false, false, 0);
             card.pack_start(&doing, false, false, 0);
+            card.pack_start(&meta, false, false, 0);
             row.add(&card);
             self.cards.add(&row);
             paths.push(s.path.clone());
