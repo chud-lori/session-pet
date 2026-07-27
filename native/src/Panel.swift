@@ -36,6 +36,9 @@ final class SessionCard: ClickableCard {
     private let pathLabel = NSTextField(labelWithString: "")
     private let meta = NSTextField(labelWithString: "")
     private let snippet = NSTextField(wrappingLabelWithString: "")
+    // jump-to-terminal affordance; hidden when we can't find the process
+    let jumpButton = NSButton(title: "↗", target: nil, action: nil)
+    var onJump: (() -> Void)?
 
     init() {
         super.init(frame: .zero)
@@ -76,7 +79,16 @@ final class SessionCard: ClickableCard {
         for v in [badgePill, ageLabel, titleLabel, status, pathLabel, meta, snippet] {
             addSubview(v)
         }
+        jumpButton.isBordered = false
+        jumpButton.font = NSFont.systemFont(ofSize: 12)
+        jumpButton.contentTintColor = cMuted
+        jumpButton.toolTip = "jump to the terminal running this session"
+        jumpButton.target = self
+        jumpButton.action = #selector(jumpTapped)
+        addSubview(jumpButton)
     }
+
+    @objc private func jumpTapped() { onJump?() }
 
     required init?(coder: NSCoder) { fatalError("unused") }
 
@@ -109,9 +121,15 @@ final class SessionCard: ClickableCard {
             badge.frame = NSRect(x: 6, y: (16 - textH) / 2, width: labelW, height: textH)
         }
         ageLabel.stringValue = fmtAge(sess.age)
+        // jump arrow sits at the far right of the identity strip; the age
+        // shifts left to make room only when the session is jumpable
+        let canJump = agentProcs[sess.path] != nil
+        jumpButton.isHidden = !canJump
+        jumpButton.frame = NSRect(x: width - padH - 16, y: cy, width: 16, height: 16)
         // same text-top as the badge label ((16-11)/2 = 2.5) so both Menlo 10
         // baselines land together on the identity row
-        ageLabel.frame = NSRect(x: width - padH - 48, y: cy + 2.5, width: 48, height: 12)
+        ageLabel.frame = NSRect(x: width - padH - 48 - (canJump ? 18 : 0),
+                                y: cy + 2.5, width: 48, height: 12)
         cy += 22
 
         // row 2 — title (hero), wraps to at most 2 full-width lines
@@ -442,6 +460,7 @@ final class Panel {
             }
             card.update(sess, open: expanded.contains(sess.path), width: 332)
             card.setFrameOrigin(NSPoint(x: 0, y: y))
+            card.onJump = { jumpToTerminal(sess) }
             card.onClick = { [weak self] in
                 self?.onCardClick?(sess) // per-card ack
                 self?.toggleCard(sess.path)

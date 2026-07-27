@@ -47,6 +47,7 @@ Append `-s -- --login-item` to start at every login.
 | Menu (panel / sound / hide / quit) | **right-click** the pet |
 | Watch a movie in peace | right-click → **Hide 30 min** — sounds keep working, and the pet returns early only if an agent needs your input |
 | Acknowledge a finished/needs-input session | click its card in the panel |
+| Jump back to the terminal running a session | click **↗** on its card |
 | Expand a session card (path, tokens, last message) | click the card |
 | Change species / toggle sound / toggle wandering | panel → **settings ▸** |
 
@@ -72,6 +73,23 @@ reminder hop every ~12s (plus the "!" badge) until you acknowledge it — motion
 catches the corner of your eye even with the volume off. **Dots under the
 pet** (2+ sessions): green = working, yellow = finished, blinking red = needs
 you.
+
+**Jump to terminal (↗):** each card can raise the window running that
+session. No hook or shell integration — the agent process is found in the
+process list, and its ancestry names the hosting terminal/IDE. How precise
+it gets depends on what the terminal exposes:
+
+| Terminal | Precision |
+|---|---|
+| iTerm2, Terminal.app (macOS) | **exact tab** — matched on the session's tty, so two tabs in one project are still told apart |
+| Ghostty (macOS) | window, plus its native tab when the tab title carries the project name |
+| VS Code, JetBrains (macOS) | window, matched by title |
+| any terminal (Linux/X11) | window, matched on `_NET_WM_PID` with a title tiebreak for single-process terminals (GNOME Terminal, Konsole, Ghostty); tabs aren't addressable through EWMH |
+| Wayland-native (Linux) | not available — Wayland has no protocol for focusing another app's window; run under XWayland |
+
+On macOS the first jump into iTerm2/Terminal.app asks for Automation
+permission, and Ghostty/editor jumps need Accessibility. Decline and the
+app still comes forward, just not the exact tab.
 
 > Maintainers: the docs page is served from `docs/` — enable it once via
 > GitHub **Settings → Pages → Deploy from a branch → `main` / `/docs`**.

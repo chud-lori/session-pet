@@ -219,9 +219,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 window.orderFront(nil)
                 clampToScreen()
             }
-            if now - lastPsScan > 15 {  // open-session process scan, cheap but not 1Hz-cheap
+            if now - lastPsScan > 15 {
+                // one ps+lsof pass feeds both the open-session check (which
+                // scanSessions needs BEFORE it runs) and the session→terminal
+                // map behind the jump button; the map is matched against the
+                // previous tick's sessions, so a new session's jump button
+                // appears one poll late — invisible at 1 Hz
                 lastPsScan = now
-                refreshOpenSessions()
+                refreshAgentProcs(view.sessions)
             }
             readEvents()
             var sessions = scanSessions()

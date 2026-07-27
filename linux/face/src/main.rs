@@ -415,6 +415,53 @@ fn main() {
     gtk::main();
 }
 
+/// Raise the terminal window running a session. The core hands us the agent
+/// process's ancestor pids; the terminal emulator is whichever toplevel
+/// window advertises one of them as _NET_WM_PID. Pure EWMH through GDK — no
+/// xdotool/wmctrl dependency. X11/XWayland only: Wayland has no protocol for
+/// focusing another application's window.
+pub fn jump_to_terminal(term_pids: &[i32], needle: &str) {
+    if term_pids.is_empty() {
+        return;
+    }
+    let Some(screen) = gdk::Screen::default() else { return };
+    let pid_atom = gdk::Atom::intern("_NET_WM_PID");
+    let cardinal = gdk::Atom::intern("CARDINAL");
+    let name_atom = gdk::Atom::intern("_NET_WM_NAME");
+    let utf8 = gdk::Atom::intern("UTF8_STRING");
+    let read_pid = |win: &gdk::Window| -> Option<i32> {
+        let (_, _, data) = gdk::property_get(win, &pid_atom, &cardinal, 0, 4, 0)?;
+        (data.len() >= 4).then(|| {
+            // X returns 32-bit properties as C longs (8 bytes on LP64); the
+            // value sits in the low bytes on every LE target we build for
+            u32::from_ne_bytes([data[0], data[1], data[2], data[3]]) as i32
+        })
+    };
+    let title = |win: &gdk::Window| -> String {
+        gdk::property_get(win, &name_atom, &utf8, 0, 1024, 0)
+            .map(|(_, _, d)| String::from_utf8_lossy(&d).to_string())
+            .unwrap_or_default()
+    };
+    // window_stack is bottom-to-top; scan from the top so the most recently
+    // used window wins ties
+    let stack = screen.window_stack();
+    let matches: Vec<&gdk::Window> = stack
+        .iter()
+        .rev()
+        .filter(|w| read_pid(w).map_or(false, |p| term_pids.contains(&p)))
+        .collect();
+    // GNOME Terminal, Konsole and Ghostty serve EVERY window from a single
+    // process, so _NET_WM_PID alone can't tell their windows apart — break
+    // the tie on the window title, which carries the project directory.
+    let target = matches
+        .iter()
+        .find(|w| !needle.is_empty() && title(w).contains(needle))
+        .or_else(|| matches.first());
+    if let Some(win) = target {
+        win.focus(gtk::current_event_time());
+    }
+}
+
 // Per-pixel hit testing. AppKit gives the mac pet this for free (clicks on
 // transparent parts of a window pass through); on X11 the window is a plain
 // rectangle, so clicks near the pet — empty corners, the effects area above
@@ -656,6 +703,10 @@ fn load_css() {
         .pet-panel .sprite-btn:hover { background-color: #33334a; }
         .pet-panel .sprite-btn.selected { border-color: #a6e3a1;
             background-color: #2c3a2e; }
+        .pet-panel .jump-btn { background-image: none; background: transparent;
+            color: #7f849c; padding: 0 4px; min-width: 0; min-height: 0;
+            border: none; }
+        .pet-panel .jump-btn:hover { color: #a6e3a1; }
         .pet-panel .quit-btn { background-image: none;
             background-color: #26262e; color: #cdd6f4;
             border: 1px solid #45475a; border-radius: 8px;

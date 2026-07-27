@@ -345,6 +345,24 @@ impl Panel {
             // top: project pill left, age right
             let top = gtk::Box::new(gtk::Orientation::Horizontal, 6);
             top.pack_start(&badge_label(&s.project), false, false, 0);
+            // jump arrow, only when the core identified the terminal process
+            if !s.term_pids.is_empty() {
+                let jump = gtk::Button::with_label("↗");
+                jump.style_context().add_class("jump-btn");
+                jump.set_relief(gtk::ReliefStyle::None);
+                jump.set_tooltip_text(Some("jump to the terminal running this session"));
+                let pids = s.term_pids.clone();
+                // title tiebreak for single-process terminals: the project
+                // dir is what their window titles carry
+                let needle = s
+                    .cwd
+                    .as_deref()
+                    .and_then(|c| c.rsplit('/').next())
+                    .unwrap_or(&s.project)
+                    .to_string();
+                jump.connect_clicked(move |_| crate::jump_to_terminal(&pids, &needle));
+                top.pack_end(&jump, false, false, 0);
+            }
             let age = gtk::Label::new(Some(&fmt_age(s.age)));
             age.style_context().add_class("dim");
             top.pack_end(&age, false, false, 0);
