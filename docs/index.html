@@ -333,24 +333,26 @@
     <div class="wrap">
       <h2><span class="hash">#</span>Install</h2>
       <p class="lead">
-        One tool, one installer — macOS and Linux, native on both. Fastest
-        path needs no clone (prebuilt from releases):
+        One tool, one installer — macOS and Linux, native on both. Clone +
+        build from source:
       </p>
-      <div class="codeblock"><pre><span class="p">$</span> curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh</pre></div>
-      <p style="color:var(--muted); font-size:.92rem">
-        Add <code>-s -- --login-item</code> to start at every login. From a
-        clone the same script builds from source:
-      </p>
-      <div class="codeblock"><pre><span class="p">$</span> git clone https://github.com/chud-lori/session-pet.git
+      <div class="codeblock"><pre><span class="c"># linux build deps: sudo apt install libgtk-3-dev  (+ cargo via rustup.rs)</span>
+<span class="c"># macos build deps: Xcode Command Line Tools (swiftc) — macOS 13+</span>
+<span class="p">$</span> git clone https://github.com/chud-lori/session-pet.git
 <span class="p">$</span> cd session-pet
 <span class="p">$</span> ./install.sh --login-item   <span class="c"># build + run + start at every login</span></pre></div>
       <p style="color:var(--muted); font-size:.92rem">
+        Or skip the clone and toolchain — downloads a prebuilt from the
+        <a href="https://github.com/chud-lori/session-pet/releases">latest
+        release</a> (needs a published release; prebuilts only need
+        <code>python3</code> + the GTK3 runtime already on GNOME/KDE/XFCE
+        desktops):
+      </p>
+      <div class="codeblock"><pre><span class="p">$</span> curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh</pre></div>
+      <p style="color:var(--muted); font-size:.92rem">
+        Add <code>-s -- --login-item</code> to start at every login.
         <code>./install.sh --uninstall</code> removes it on either OS, leaving
-        your pet's state untouched. Requirements: <code>python3</code>; clone
-        builds also need <code>swiftc</code> (macOS 13+, Command Line Tools) or
-        <code>cargo</code> + <code>libgtk-3-dev</code> (Linux). Prebuilt Linux
-        binaries only need the GTK3 runtime already on GNOME/KDE/XFCE desktops —
-        Wayland/compositor notes live in the
+        your pet's state untouched. Wayland/compositor notes live in the
         <a href="https://github.com/chud-lori/session-pet#native-pet--linux-python-core--rustgtk-face">README</a>.
       </p>
       <p style="color:var(--muted); font-size:.92rem; margin-top:10px">

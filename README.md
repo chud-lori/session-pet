@@ -14,26 +14,28 @@ same `.state/state.json`. No Electron, no dependencies.
 
 ## Quick install
 
-One installer, both OSes. No clone (downloads a prebuilt from releases):
+One installer, both OSes — clone + build from source:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh
-```
-
-Append `-s -- --login-item` to start at every login. From a clone it builds
-from source instead:
-
-```bash
+# linux build deps: sudo apt install libgtk-3-dev  (+ cargo via rustup.rs)
+# macos build deps: Xcode Command Line Tools (swiftc) — macOS 13+
 git clone https://github.com/chud-lori/session-pet.git
 cd session-pet
 ./install.sh --login-item   # build + run + start at every login
 ```
 
-`./install.sh --uninstall` removes it on either OS. Requirements: `python3`;
-clone builds also need `swiftc` (macOS 13+, Command Line Tools) or `cargo` +
-`libgtk-3-dev` (Linux). Prebuilt Linux binaries only need the GTK3 runtime
-any GNOME/KDE/XFCE desktop already has. Linux-only flags: `--download`,
-`--from-source`, `--layer-shell`, `--version vX.Y.Z`.
+Or skip the clone and toolchain entirely — downloads a prebuilt from the
+[latest release](https://github.com/chud-lori/session-pet/releases)
+(needs a published release; prebuilts only need `python3` + the GTK3
+runtime any GNOME/KDE/XFCE desktop already has):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh
+```
+
+Append `-s -- --login-item` to start at every login.
+`./install.sh --uninstall` removes it on either OS. Linux-only flags:
+`--download`, `--from-source`, `--layer-shell`, `--version vX.Y.Z`.
 
 ## Using the pet
 
