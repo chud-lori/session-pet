@@ -2,40 +2,34 @@
 
 A pixel-art desktop companion for your coding agents: one tiny always-on-top
 native pet that watches **every Claude Code and Codex session** on your
-machine (macOS and Linux) —
-it bounces while agents work, dings the moment one needs your input (including
-permission prompts, via an optional hook), flags sessions that stall mid-turn,
-shows live per-session cards (project, current tool, context size, last
-message), and levels up across 8 species as you ship. Native on both
-platforms — Swift/AppKit on macOS, Rust/GTK on Linux — same pet, same XP,
-same `.state/state.json`. No Electron, no dependencies.
+machine. It bounces while agents work, dings the moment one needs your input,
+flags sessions that stall mid-turn, shows live per-session cards, jumps you
+back to the terminal running any session, and levels up across 8 species as
+you ship.
+
+Native on both platforms — Swift/AppKit on macOS, Rust/GTK on Linux — sharing
+one pet, one XP pool, one `.state/state.json`. No Electron, no dependencies.
 
 **Docs & tour:** <https://chud-lori.github.io/session-pet/>
 
-## Quick install
-
-One installer, both OSes — clone + build from source:
+## Install
 
 ```bash
-# linux build deps: sudo apt install libgtk-3-dev  (+ cargo via rustup.rs)
-# macos build deps: Xcode Command Line Tools (swiftc) — macOS 13+
+# build deps — linux: sudo apt install libgtk-3-dev (+ cargo via rustup.rs)
+#              macos: Xcode Command Line Tools (swiftc), macOS 13+
 git clone https://github.com/chud-lori/session-pet.git
 cd session-pet
 ./install.sh --login-item   # build + run + start at every login
 ```
 
-Or skip the clone and toolchain entirely — downloads a prebuilt from the
-[latest release](https://github.com/chud-lori/session-pet/releases)
-(needs a published release; prebuilts only need `python3` + the GTK3
-runtime any GNOME/KDE/XFCE desktop already has):
+No clone and no toolchain, once a release is published:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh
 ```
 
-Append `-s -- --login-item` to start at every login.
-`./install.sh --uninstall` removes it on either OS. Linux-only flags:
-`--download`, `--from-source`, `--layer-shell`, `--version vX.Y.Z`.
+`./install.sh --uninstall` removes it on either OS. Full options, autostart,
+Wayland notes and troubleshooting: **[INSTALL.md](INSTALL.md)**.
 
 ## Using the pet
 
@@ -58,101 +52,38 @@ The `pet` helper works from anywhere in the repo:
 ./pet status   # is it running?
 ```
 
-It also returns automatically at next login (LaunchAgent). **Wandering
-(macOS for now):** the
-pet takes short strolls along your screen (animated walk cycle) every so often
-— never while something needs your attention, and off entirely via
-settings ▸ "let the pet wander around". Wherever you drag it or it walks to
-is its new home. **Sounds:** a quiet
-*Glass* when a turn finishes; a louder **double *Ping*** when an agent needs
-your input — repeating every 45s (max 3×) until you acknowledge it, so you
-won't miss it while watching a video. **Muted?** The pet also *jumps
-excitedly* when a session finishes or needs you, and keeps doing a small
-reminder hop every ~12s (plus the "!" badge) until you acknowledge it — motion
-catches the corner of your eye even with the volume off. **Dots under the
-pet** (2+ sessions): green = working, yellow = finished, blinking red = needs
-you.
+**Sounds:** a quiet chime when a turn finishes; a louder **double ping** when
+an agent needs you, repeating every 45s (max 3×) until you acknowledge it.
+**Muted?** The pet also jumps excitedly and keeps a small reminder hop going
+until you acknowledge it — motion catches the eye with the volume off.
+**Dots under the pet** (2+ sessions): green = working, yellow = finished,
+blinking red = needs you. **Wandering:** the pet takes short strolls along
+your screen; wherever you drag it or it walks to becomes its new home.
 
-**Jump to terminal:** clicking a session card raises the terminal running
-it. No hook and no shell integration — the agent process is found in the
-process list, and its ancestry names the hosting terminal/IDE. How precisely
-it lands depends on what that app exposes:
+## Optional — permission-prompt alerts
 
-| Terminal | Precision |
-|---|---|
-| iTerm2, Terminal.app (macOS) | **exact tab** — matched on the session's tty, so two tabs in one project are still told apart |
-| Ghostty (macOS) | **exact tab/split** — Ghostty's scripting model exposes each surface's live working directory, paired with the tab title (which carries the session's own name) |
-| VS Code, JetBrains (macOS) | window, matched by title |
-| GNOME Terminal, Konsole, others (Linux/X11) | window — matched on `_NET_WM_PID`, then on the window title, since these serve every window from one process. Tabs aren't addressable: EWMH has no concept of them |
-| Wayland-native (Linux) | not available — Wayland has no protocol for focusing another app's window; run under XWayland (the default) |
+Claude Code permission prompts leave no trace in the transcript, so the pet
+can't see them by reading files alone. This hook closes that gap; merge it
+into `~/.claude/settings.json` under `"hooks"` (the installer never edits
+your settings, and it needs `jq`):
 
-On macOS the first jump asks for Automation permission (and Accessibility
-for editors). Decline and the app still comes forward, just not the exact tab.
-
-> Maintainers: the docs page is served from `docs/` — enable it once via
-> GitHub **Settings → Pages → Deploy from a branch → `main` / `/docs`**.
-
-## Native pet — macOS (Swift/AppKit)
-
-```bash
-swiftc -O native/src/*.swift -o native/SessionPet   # build (CLT only, no Xcode)
-./native/SessionPet [scale]                         # run, default scale 5
+```json
+"Notification": [{"hooks": [{"type": "command", "async": true,
+  "command": "jq -c . >> /path/to/session-pet/.state/events.jsonl"}]}]
 ```
 
-Plain Swift/AppKit split across a few files in `native/src/` — no Xcode
-project, no dependencies. Same behavior as the Python pet plus what only native
-can do: true per-pixel transparency with the **whole window clickable**,
-retina-crisp sprites, popover-style panel (click anywhere outside dismisses),
-per-session **context size** (`ctx 84k`) and the agent's **last message
-snippet** in the panel. Sprites and species come from `native/assets.json` —
-the sprite **source of truth** (originally exported from the legacy
-`pet_window.py` pixel maps via `python3 native/export_assets.py`). Shares
-`.state/state.json` with the Python pet.
+Without it you still get alerts for `AskUserQuestion`/`ExitPlanMode` and
+stall detection — you just lose the instant path for permission prompts.
 
-## Native pet — Linux (Python core + Rust/GTK face)
+## More docs
 
-Same pet, different native face, built as a **core/face split**:
-
-```
-linux/core.py    Python (stdlib only) — scans ~/.claude + ~/.codex transcripts,
-                 owns pet state/XP, decides sounds. Port of the Swift Scanner.
-linux/face/      Rust + GTK3 — draws the sprite, plays sounds, panel, clicks.
-                 Spawns core.py and speaks NDJSON with it over stdin/stdout.
-```
-
-All parsing of session transcripts (untrusted text) happens in the Python
-core; the Rust face only reads the core's own JSON. Sprites come from the
-same `native/assets.json`, and `.state/state.json` is shared — your dragon
-keeps its level across OSes. Sound plays via `paplay`, `pw-play`, or
-`ffplay` (first found; none = silent). The prebuilt binary embeds the core
-and assets, so it runs without a clone (state under
-`~/.local/share/session-pet`).
-
-**Wayland notes** (if the pet won't stay on top):
-
-- **X11 / XWayland** (incl. Ubuntu GNOME): works out of the box.
-- **Pure Wayland on KDE / sway / Hyprland:** build with
-  `./linux/install.sh --from-source --layer-shell` — the pet becomes a real
-  overlay (fixed bottom-right; compositors don't let clients move layer
-  surfaces).
-- **Pure Wayland on GNOME:** GNOME has no layer-shell and Wayland forbids
-  app-side always-on-top — run under XWayland: `GDK_BACKEND=x11
-  session-pet` (the default install does this automatically).
-
-Hacking:
-
-```bash
-python3 linux/core.py --once          # one snapshot, pretty-printed
-python3 linux/core.py --serve         # what the face runs
-cd linux/face && cargo run -- 6       # face at scale 6 (needs a display)
-```
-
-`SESSION_PET_ROOT` overrides the state/sounds/sprites root;
-`SESSION_PET_HOME` points the scanners at a fixture home (same as the test
-rig). Tags `v*` build `session-pet-linux-{x86_64,arm64}` and the universal
-`session-pet-macos.tar.gz` via `.github/workflows/release.yml`; Linux
-release binaries skip layer-shell on purpose so their only deps stay
-python3 + GTK3.
+- **[INSTALL.md](INSTALL.md)** — every install flag, autostart, releases,
+  Wayland/compositor notes, uninstalling
+- **[CUSTOMIZING.md](CUSTOMIZING.md)** — sprite packs, sound packs,
+  species/name CLI, the legacy statusline pet
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** — how sessions are detected, the
+  macOS and Linux implementations, jump-to-terminal precision, hacking
+  and tests
 
 ## Non-goals
 
@@ -167,132 +98,3 @@ Kept deliberately out of scope — say no early, stay small:
 
 **False-positive budget:** any false *needs-input* or *ready* ding is
 release-blocking; a false *working* is tolerable but must be time-bounded.
-
-## Python desktop pet (deprecated / legacy)
-
-> `pet_window.py` is **deprecated** — kept for reference only. The native pet
-> is the primary implementation, and `native/assets.json` is the sprite source
-> of truth.
-
-```bash
-python3 pet_window.py            # or --scale 8 for a bigger pet
-```
-
-A frameless, truly transparent, always-on-top pixel-art pet that watches every
-agent session on the machine — Claude Code (`~/.claude/projects/*.jsonl`) and
-Codex (`~/.codex/sessions/**/rollout-*.jsonl`) — via a per-provider parser that
-normalizes both to the same phases (the multi-provider idea comes from
-[code-island](https://github.com/rifqiakrm/code-island)):
-
-- **working** — bounces fast with sparkles ✦ while any session is mid-turn.
-  Turn-end is detected from the transcript's last event (`stop_reason:
-  end_turn` for Claude, `task_complete` for Codex) — a long tool run or
-  thinking pause does NOT count as "done" (no false dings).
-- **needs you** — when an agent literally asks you something
-  (`AskUserQuestion`/`ExitPlanMode` for Claude, `request_user_input` for
-  Codex): red blinking dot + Ping.aiff. When a turn just ends: **!** +
-  Glass.aiff.
-- **sleeping** — drifting z's when no session has activity
-
-With 2+ sessions, status dots appear under the sprite (green working · red
-needs input · yellow done), and the modal lists each session with what it is
-doing right now (tool + command/file, per provider).
-
-Because the window is transparent, clicks only land on the pet's opaque pixels
-(macOS passes clicks through transparent areas) — click the body or its ground
-shadow.
-
-Multiple sessions: one pet watches them all — it works while *any* session is
-mid-turn (the modal shows the count), and dings once per session that finishes.
-
-**Click the pet** → details modal (like the Codex desktop pet's panel): level,
-stage, XP progress bar to the next evolution, live Claude status + session
-count, last active project, sound toggle, and a **visual sprite picker** (click
-a portrait to adopt it). **Drag** to move it anywhere. **Right-click** to quit.
-
-A brand-new pet starts as an egg; picking a sprite in the modal hatches it
-instantly (30 XP hatches it automatically too). Sprites are 16px chibi pixel
-maps in `pet_window.py` (`PIXELS`) — add your own species by adding a map + an
-entry in `pet.py`'s `SPECIES`. Default window scale is 4 (compact); use
-`--scale 6` for a bigger pet.
-
-Start it at login (optional): add a LaunchAgent or just put
-`nohup python3 ~/Projects/claude-pet/pet_window.py &` in your login items.
-
-- **Mirrors the agent's state** (like Codex pets' 3 states): animates while Claude is
-  *working*, perks up when it's *waiting for you*, and *sleeps* when the session idles.
-- **Grows across sessions**: earns XP from lines of code (+ session cost), persisting in
-  `.state/state.json`. Stages: 🥚 egg → hatchling → adult → 👑 legendary.
-- **8 species**: cat, dragon, crab, octopus, dino, fox, alien, turtle.
-- Stdlib-only Python, never breaks the statusline (always exits 0, falls back to 🐾).
-
-## Install
-
-Add to `~/.claude/settings.json` (or run `/statusline` in Claude Code and ask it to use
-this command):
-
-```json
-"statusLine": {
-  "type": "command",
-  "command": "python3 /Users/nurchudlori/Projects/claude-pet/pet.py"
-}
-```
-
-## Customize
-
-### Native pet: sprite packs (drop-in)
-
-Drop a JSON file into `sprites/` — one species per file, picked up at the next
-pet launch and added to the species picker (no rebuild, no export step):
-
-- **Walk cycle (optional)**: add a `"walk"` key — an array of frames, each the
-  same shape as `"rows"` — and the pet uses them while strolling. Packs without
-  it get an automatic two-frame leg shuffle.
-- **Species key = filename stem**: `sprites/example-slime.json` → species
-  `example-slime`. If the key matches a built-in (`cat`, `egg`, …), **your pack
-  wins** and replaces that sprite.
-- **Schema** — same as one `species` entry in `native/assets.json`:
-  `{"name": "Slimey", "emoji": "🫧", "palette": {"X": "#7ee8a2", …},
-  "rows": ["....kkkk....", …]}`. Rows are pixel strings; each char is a
-  palette key.
-- **Conventions**: `.` = transparent; `o`/`w` are eye pixels (the pet redraws
-  them as `X` when blinking, so use `X` as the main body color to make closed
-  eyes look right). Built-ins are 16px wide.
-- Malformed files (bad JSON, missing/empty `rows`) are skipped, never crash;
-  run with `SESSION_PET_LOG=1` to see skips in `/tmp/session-pet.log`.
-- `sprites/example-slime.json` ships as a working template.
-
-### Native pet: sound packs
-
-The two pet sounds are overridable via optional keys in `.state/state.json`:
-
-- `"soundReady"` — a turn finished (default `Glass.aiff`)
-- `"soundInput"` — an agent needs you (default `Ping.aiff`)
-
-Values are either an absolute path or a bare filename resolved against the
-repo's `sounds/` dir, e.g. `{"soundReady": "meow.wav"}` plays
-`sounds/meow.wav`. Anything `afplay` can play works (aiff/wav/mp3/m4a). A
-missing file silently falls back to the system default.
-
-### Python statusline pet (legacy)
-
-```bash
-python3 pet.py species              # list species (← marks current)
-python3 pet.py set species dragon   # pick your pet
-python3 pet.py set name Smaug       # rename it
-python3 pet.py status               # XP / stage outside the statusline
-```
-
-The name shows as `???` until the egg hatches (30 XP).
-
-## How it works
-
-Claude Code invokes the statusLine command on conversation updates (throttled to
-~300 ms), piping session JSON to stdin. The pet derives:
-
-- **state** — from the transcript file's mtime (<15 s = working, <5 min = waiting,
-  else sleeping)
-- **animation frame** — from the wall clock, so it only animates while Claude is
-  actively producing updates (just like a Codex pet's "running" sprite)
-- **XP** — per-session max of `lines_added + lines_removed + $cost`, summed across all
-  sessions ever (old sessions get pruned into `banked_xp`, nothing is lost)

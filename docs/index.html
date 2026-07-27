@@ -270,8 +270,8 @@
       <h2><span class="hash">#</span>What it does</h2>
       <p class="lead">
         A frameless, truly transparent, always-on-top window — clicks only land on
-        the pet's opaque pixels. One binary, zero dependencies, built with the
-        Xcode Command Line Tools alone.
+        the pet's opaque pixels. Native on both platforms, zero dependencies:
+        Swift/AppKit on macOS, Rust/GTK on Linux, sharing one pet and one XP pool.
       </p>
       <div class="grid">
         <div class="pixel-box card edge blue">
@@ -299,9 +299,17 @@
         <div class="pixel-box card edge yellow">
           <span class="glyph" aria-hidden="true">🔊</span>
           <h3>Sounds you can trust</h3>
-          <p>Ping.aiff when an agent needs you, Glass.aiff when a turn finishes.
-             Debounced, one ding per session, mutable from the panel. The
+          <p>A double ping when an agent needs you, a quiet chime when a turn
+             finishes. Debounced, one ding per session, mutable from the panel. The
              false-positive budget is zero: a wrong ding is release-blocking.</p>
+        </div>
+        <div class="pixel-box card edge blue">
+          <span class="glyph" aria-hidden="true">↗</span>
+          <h3>Jump back to the terminal</h3>
+          <p>Click a session card and the terminal running it comes forward — the
+             <strong>exact tab</strong> in iTerm2, Terminal.app and Ghostty, matched
+             on the session's tty or working directory. No hook, no shell
+             integration.</p>
         </div>
         <div class="pixel-box card edge purple">
           <span class="glyph" aria-hidden="true">✨</span>
@@ -353,7 +361,7 @@
         Add <code>-s -- --login-item</code> to start at every login.
         <code>./install.sh --uninstall</code> removes it on either OS, leaving
         your pet's state untouched. Wayland/compositor notes live in the
-        <a href="https://github.com/chud-lori/session-pet#native-pet--linux-python-core--rustgtk-face">README</a>.
+        <a href="https://github.com/chud-lori/session-pet/blob/main/INSTALL.md">INSTALL.md</a>.
       </p>
       <p style="color:var(--muted); font-size:.92rem; margin-top:10px">
         <strong style="color:var(--ink)">Optional — permission-prompt alerts:</strong>
@@ -369,8 +377,10 @@
         (click again or anywhere outside to close) ·
         <strong style="color:var(--ink)">drag</strong> to move it anywhere ·
         <strong style="color:var(--ink)">right-click</strong> → menu (open panel /
-        sound on-off / quit). In the panel: click a session card to expand it
-        (path, context tokens, last message) and to acknowledge its alert;
+        sound on-off / quit). In the panel: <strong style="color:var(--ink)">click
+        a session card</strong> to jump to the terminal running it (and
+        acknowledge its alert), or <strong style="color:var(--ink)">right-click</strong>
+        it for details (path, context tokens, last message);
         <strong style="color:var(--ink)">settings ▸</strong> holds the species
         picker, the sound toggle, and the wander toggle.
       </p>
