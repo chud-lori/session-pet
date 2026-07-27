@@ -183,6 +183,9 @@ fn main() {
     window.set_skip_taskbar_hint(true);
     window.set_skip_pager_hint(true);
     window.set_type_hint(gdk::WindowTypeHint::Utility);
+    // never steal keyboard focus from the user's work — and clicking the
+    // pet must not blur the panel (its focus-out is what closes it)
+    window.set_accept_focus(false);
     window.set_default_size(w as i32, h as i32);
     window.set_resizable(false);
     window.stick();

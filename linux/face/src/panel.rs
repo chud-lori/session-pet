@@ -81,9 +81,7 @@ impl Panel {
             w.hide();
             glib::Propagation::Stop
         });
-        // Esc closes (mac closes on outside click; a GTK focus-out handler
-        // would also fire when the species dropdown grabs focus, so Esc +
-        // clicking the pet again are the close paths here)
+        // Esc closes
         window.connect_key_press_event(|w, ev| {
             if ev.keyval() == gtk::gdk::keys::constants::Escape {
                 w.hide();
@@ -158,6 +156,27 @@ impl Panel {
                 }
             });
         }
+        // outside-click closes, mac-style: any focus loss hides the panel —
+        // EXCEPT while the species dropdown is popped up (its grab briefly
+        // steals focus and would slam the panel shut mid-pick). The pet
+        // window itself never takes focus (set_accept_focus(false)), so
+        // clicking the pet keeps plain toggle semantics.
+        {
+            let combo_open = std::rc::Rc::new(std::cell::Cell::new(false));
+            {
+                let combo_open = combo_open.clone();
+                species.connect_notify_local(Some("popup-shown"), move |c, _| {
+                    combo_open.set(c.property::<bool>("popup-shown"));
+                });
+            }
+            window.connect_focus_out_event(move |w, _| {
+                if !combo_open.get() {
+                    w.hide();
+                }
+                glib::Propagation::Proceed
+            });
+        }
+
         let sound = gtk::CheckButton::with_label("sound");
         {
             let send = send.clone();
