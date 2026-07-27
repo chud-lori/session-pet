@@ -237,7 +237,14 @@ fn main() {
         });
     }
 
-    let pet_panel = Rc::new(panel::Panel::new(&assets, send.clone()));
+    let on_quit: Rc<dyn Fn()> = {
+        let child = child.clone();
+        Rc::new(move || {
+            let _ = child.borrow_mut().kill();
+            gtk::main_quit();
+        })
+    };
+    let pet_panel = Rc::new(panel::Panel::new(&assets, send.clone(), on_quit));
     // transient-of-the-pet: Mutter keeps parentless Utility windows odd —
     // transient windows map reliably, stay on the pet's workspace and layer
     pet_panel.window.set_transient_for(Some(&window));
@@ -455,7 +462,7 @@ fn place_panel(p: &panel::Panel, pet_win: &gtk::Window) {
     let (pet_w, pet_h) = pet_win.size();
     let (pan_w, pan_h) = {
         let (_, nat) = p.window.preferred_size();
-        (nat.width().max(340), nat.height().max(200))
+        (nat.width.max(340), nat.height.max(200))
     };
     let geo = gdk::Display::default()
         .and_then(|d| {
@@ -581,9 +588,19 @@ fn load_css() {
             background-color: #26262e; border: 1px solid #45475a; }
         .pet-panel checkbutton:checked check { background-color: #a6e3a1;
             border-color: #a6e3a1; color: #181825; }
-        .pet-panel combobox button { background-image: none;
+        .pet-panel flowboxchild { padding: 0; background: transparent; }
+        .pet-panel .sprite-btn { background-image: none;
+            background-color: #26262e; border: 2px solid transparent;
+            border-radius: 8px; padding: 4px; min-width: 0; min-height: 0; }
+        .pet-panel .sprite-btn:hover { background-color: #33334a; }
+        .pet-panel .sprite-btn.selected { border-color: #a6e3a1;
+            background-color: #2c3a2e; }
+        .pet-panel .quit-btn { background-image: none;
             background-color: #26262e; color: #cdd6f4;
-            border: 1px solid #45475a; }
+            border: 1px solid #45475a; border-radius: 8px;
+            padding: 2px 12px; font-size: 12px; }
+        .pet-panel .quit-btn:hover { background-color: rgba(69, 37, 49, 0.9);
+            border-color: #f28ca8; color: #f28ca8; }
         ",
     );
     if let Some(screen) = gdk::Screen::default() {

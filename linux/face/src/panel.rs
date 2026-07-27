@@ -21,7 +21,7 @@ pub struct Panel {
     xp_bar: gtk::ProgressBar,
     chip: gtk::Label,
     cards: gtk::ListBox,
-    species: gtk::ComboBoxText,
+    species_btns: Vec<(String, gtk::Button)>,
     sound: gtk::CheckButton,
     walk: gtk::CheckButton,
     card_paths: Rc<RefCell<Vec<String>>>,
@@ -85,7 +85,7 @@ fn badge_label(project: &str) -> gtk::Label {
 }
 
 impl Panel {
-    pub fn new(assets: &Assets, send: CmdSender) -> Self {
+    pub fn new(assets: &Assets, send: CmdSender, on_quit: Rc<dyn Fn()>) -> Self {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
         window.set_decorated(false);
         window.set_keep_above(true);
@@ -157,55 +157,55 @@ impl Panel {
             });
         }
 
+        // outside-click closes, mac-style: any focus loss hides the panel.
+        // The pet window itself never takes focus (set_accept_focus(false)),
+        // so clicking the pet keeps plain toggle semantics.
+        window.connect_focus_out_event(move |w, _| {
+            w.hide();
+            glib::Propagation::Proceed
+        });
+
         // --- settings ▸
         let refreshing = Rc::new(RefCell::new(false));
-        let settings = gtk::Expander::new(Some("settings ▸"));
-        let sbox = gtk::Box::new(gtk::Orientation::Vertical, 6);
-        sbox.set_margin_top(6);
-        let species = gtk::ComboBoxText::new();
-        for key in &assets.order {
-            let name = assets
-                .species
-                .get(key)
-                .map(|s| s.name.as_str())
-                .unwrap_or(key);
-            species.append(Some(key), name);
-        }
-        {
-            let send = send.clone();
-            let refreshing = refreshing.clone();
-            species.connect_changed(move |c| {
-                if *refreshing.borrow() {
-                    return;
-                }
-                if let Some(id) = c.active_id() {
-                    send(serde_json::json!({"cmd": "pick_species", "key": id.as_str()}));
-                }
-            });
-        }
+        let settings = gtk::Expander::new(Some("settings ▾"));
+        let sbox = gtk::Box::new(gtk::Orientation::Vertical, 8);
+        sbox.set_margin_top(8);
 
-        // outside-click closes, mac-style: any focus loss hides the panel —
-        // EXCEPT while the species dropdown is popped up (its grab briefly
-        // steals focus and would slam the panel shut mid-pick). The pet
-        // window itself never takes focus (set_accept_focus(false)), so
-        // clicking the pet keeps plain toggle semantics.
-        {
-            let combo_open = Rc::new(std::cell::Cell::new(false));
+        // visual species picker: sprite thumbnails, click one to adopt it
+        // (picking is also what hatches an egg)
+        let picker = gtk::FlowBox::new();
+        picker.set_selection_mode(gtk::SelectionMode::None);
+        picker.set_max_children_per_line(4);
+        picker.set_column_spacing(6);
+        picker.set_row_spacing(6);
+        picker.set_homogeneous(true);
+        let mut species_btns: Vec<(String, gtk::Button)> = vec![];
+        for key in &assets.order {
+            let Some(sp) = assets.species.get(key) else { continue };
+            let btn = gtk::Button::new();
+            btn.style_context().add_class("sprite-btn");
+            btn.set_tooltip_text(Some(&sp.name));
+            btn.set_relief(gtk::ReliefStyle::None);
+            // add the image as the button's child rather than set_image() —
+            // that path is subject to the gtk-button-images theme setting
+            if let Some(pb) = crate::sprites::sprite_pixbuf(sp, 2.0) {
+                btn.add(&gtk::Image::from_pixbuf(Some(&pb)));
+            } else {
+                btn.add(&gtk::Label::new(Some(&sp.name)));
+            }
             {
-                let combo_open = combo_open.clone();
-                species.connect_notify_local(Some("popup-shown"), move |c, _| {
-                    combo_open.set(c.property::<bool>("popup-shown"));
+                let send = send.clone();
+                let key = key.clone();
+                btn.connect_clicked(move |_| {
+                    send(serde_json::json!({"cmd": "pick_species", "key": key}));
                 });
             }
-            window.connect_focus_out_event(move |w, _| {
-                if !combo_open.get() {
-                    w.hide();
-                }
-                glib::Propagation::Proceed
-            });
+            picker.add(&btn);
+            species_btns.push((key.clone(), btn));
         }
+        sbox.pack_start(&picker, false, false, 0);
 
-        let sound = gtk::CheckButton::with_label("sound");
+        let sound = gtk::CheckButton::with_label("sound when an agent needs me");
         {
             let send = send.clone();
             let refreshing = refreshing.clone();
@@ -227,9 +227,18 @@ impl Panel {
                 }
             });
         }
-        sbox.pack_start(&species, false, false, 0);
         sbox.pack_start(&sound, false, false, 0);
         sbox.pack_start(&walk, false, false, 0);
+        let quit = gtk::Button::with_label("quit pet");
+        quit.style_context().add_class("quit-btn");
+        {
+            let on_quit = on_quit.clone();
+            quit.connect_clicked(move |_| on_quit());
+        }
+        let quit_row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        quit_row.set_margin_top(4);
+        quit_row.pack_start(&quit, false, false, 0);
+        sbox.pack_start(&quit_row, false, false, 0);
         settings.add(&sbox);
         root.pack_start(&settings, false, false, 2);
 
@@ -253,7 +262,7 @@ impl Panel {
             xp_bar,
             chip,
             cards,
-            species,
+            species_btns,
             sound,
             walk,
             card_paths,
@@ -379,8 +388,14 @@ impl Panel {
         }
         self.cards.show_all();
 
-        if self.species.active_id().map(|s| s.to_string()) != Some(pet.species.clone()) {
-            self.species.set_active_id(Some(&pet.species));
+        // ring the adopted species (only once hatched — an egg has none yet)
+        for (key, btn) in &self.species_btns {
+            let ctx = btn.style_context();
+            if pet.hatched && *key == pet.species {
+                ctx.add_class("selected");
+            } else {
+                ctx.remove_class("selected");
+            }
         }
         self.sound.set_active(pet.sound);
         self.walk.set_active(pet.walk);
