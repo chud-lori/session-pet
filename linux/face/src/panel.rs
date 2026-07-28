@@ -4,6 +4,7 @@
 
 use crate::proto::{fmt_age, fmt_tokens, Snapshot};
 use crate::sprites::Assets;
+use gtk::gdk;
 use gtk::glib;
 use gtk::prelude::*;
 use std::cell::RefCell;
@@ -13,17 +14,20 @@ pub type CmdSender = Rc<dyn Fn(serde_json::Value)>;
 
 pub struct Panel {
     pub window: gtk::Window,
+    /// where to place the panel once the WM has mapped it — moving before
+    /// the map races Mutter and the move is silently dropped
+    pub place_at: Rc<std::cell::Cell<(i32, i32)>>,
     header: gtk::Label,
     sub: gtk::Label,
     xp_bar: gtk::ProgressBar,
     chip: gtk::Label,
     cards: gtk::ListBox,
-    species: gtk::ComboBoxText,
+    send: CmdSender,
+    species_btns: Vec<(String, gtk::Button)>,
     evo: gtk::ComboBoxText,
     evo_forms: Rc<RefCell<Vec<String>>>, // last-populated chain, to skip churn
     sound: gtk::CheckButton,
     walk: gtk::CheckButton,
-    card_paths: Rc<RefCell<Vec<String>>>,
     refreshing: Rc<RefCell<bool>>,
 }
 
@@ -84,17 +88,13 @@ fn badge_label(project: &str) -> gtk::Label {
 }
 
 impl Panel {
-    pub fn new(assets: &Assets, send: CmdSender) -> Self {
+    pub fn new(assets: &Assets, send: CmdSender, on_quit: Rc<dyn Fn()>) -> Self {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
         window.set_decorated(false);
         window.set_keep_above(true);
         window.set_skip_taskbar_hint(true);
         window.set_skip_pager_hint(true);
         window.set_type_hint(gtk::gdk::WindowTypeHint::Utility);
-        // open where the user just clicked (the pet) — WM-native placement,
-        // no position() math, works on Mutter/XWayland where manual moves
-        // right after show_all race the map
-        window.set_position(gtk::WindowPosition::Mouse);
         window.set_default_size(340, -1);
         window.style_context().add_class("pet-panel");
         // closing via the WM must hide, not destroy — the panel is reused
@@ -145,47 +145,16 @@ impl Panel {
         scroll.add(&cards);
         root.pack_start(&scroll, true, true, 0);
 
-        let card_paths: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(vec![]));
-        {
-            let send = send.clone();
-            let card_paths = card_paths.clone();
-            cards.connect_row_activated(move |_, row| {
-                let idx = row.index();
-                if idx >= 0 {
-                    if let Some(path) = card_paths.borrow().get(idx as usize) {
-                        // clicking a card = you saw that session (per-card ack)
-                        send(serde_json::json!({"cmd": "ack", "path": path}));
-                    }
-                }
-            });
-        }
+        // NB: clicks are handled per-card by an EventBox in refresh(), not by
+        // ListBox row-activated — a ListBox in SelectionMode::None does not
+        // reliably activate rows, and an EventBox owns its own GdkWindow so
+        // it always gets button events.
 
         // --- settings ▸
         let refreshing = Rc::new(RefCell::new(false));
-        let settings = gtk::Expander::new(Some("settings ▸"));
-        let sbox = gtk::Box::new(gtk::Orientation::Vertical, 6);
-        sbox.set_margin_top(6);
-        let species = gtk::ComboBoxText::new();
-        for key in &assets.order {
-            let name = assets
-                .species
-                .get(key)
-                .map(|s| s.name.as_str())
-                .unwrap_or(key);
-            species.append(Some(key), name);
-        }
-        {
-            let send = send.clone();
-            let refreshing = refreshing.clone();
-            species.connect_changed(move |c| {
-                if *refreshing.borrow() {
-                    return;
-                }
-                if let Some(id) = c.active_id() {
-                    send(serde_json::json!({"cmd": "pick_species", "key": id.as_str()}));
-                }
-            });
-        }
+        let settings = gtk::Expander::new(Some("settings ▾"));
+        let sbox = gtk::Box::new(gtk::Orientation::Vertical, 8);
+        sbox.set_margin_top(8);
 
         // evolution rollback — hidden until the pet has unlocked >1 form
         // (agumon → greymon at adult); show_all on panel open must not
@@ -208,28 +177,61 @@ impl Panel {
         }
 
         // outside-click closes, mac-style: any focus loss hides the panel —
-        // EXCEPT while a dropdown is popped up (its grab briefly steals
-        // focus and would slam the panel shut mid-pick). The pet window
-        // itself never takes focus (set_accept_focus(false)), so clicking
-        // the pet keeps plain toggle semantics.
+        // EXCEPT while the evolution dropdown is popped up (its grab briefly
+        // steals focus and would slam the panel shut mid-pick). The pet
+        // window itself never takes focus (set_accept_focus(false)), so
+        // clicking the pet keeps plain toggle semantics.
         {
-            let species_open = Rc::new(std::cell::Cell::new(false));
             let evo_open = Rc::new(std::cell::Cell::new(false));
-            for (combo, open) in [(&species, &species_open), (&evo, &evo_open)] {
-                let open = open.clone();
-                combo.connect_notify_local(Some("popup-shown"), move |c, _| {
+            {
+                let open = evo_open.clone();
+                evo.connect_notify_local(Some("popup-shown"), move |c, _| {
                     open.set(c.property::<bool>("popup-shown"));
                 });
             }
             window.connect_focus_out_event(move |w, _| {
-                if !species_open.get() && !evo_open.get() {
+                if !evo_open.get() {
                     w.hide();
                 }
                 glib::Propagation::Proceed
             });
         }
 
-        let sound = gtk::CheckButton::with_label("sound");
+        // visual species picker: sprite thumbnails, click one to adopt it
+        // (picking is also what hatches an egg)
+        let picker = gtk::FlowBox::new();
+        picker.set_selection_mode(gtk::SelectionMode::None);
+        picker.set_max_children_per_line(4);
+        picker.set_column_spacing(6);
+        picker.set_row_spacing(6);
+        picker.set_homogeneous(true);
+        let mut species_btns: Vec<(String, gtk::Button)> = vec![];
+        for key in &assets.order {
+            let Some(sp) = assets.species.get(key) else { continue };
+            let btn = gtk::Button::new();
+            btn.style_context().add_class("sprite-btn");
+            btn.set_tooltip_text(Some(&sp.name));
+            btn.set_relief(gtk::ReliefStyle::None);
+            // add the image as the button's child rather than set_image() —
+            // that path is subject to the gtk-button-images theme setting
+            if let Some(pb) = crate::sprites::sprite_pixbuf(sp, 2.0) {
+                btn.add(&gtk::Image::from_pixbuf(Some(&pb)));
+            } else {
+                btn.add(&gtk::Label::new(Some(&sp.name)));
+            }
+            {
+                let send = send.clone();
+                let key = key.clone();
+                btn.connect_clicked(move |_| {
+                    send(serde_json::json!({"cmd": "pick_species", "key": key}));
+                });
+            }
+            picker.add(&btn);
+            species_btns.push((key.clone(), btn));
+        }
+        sbox.pack_start(&picker, false, false, 0);
+
+        let sound = gtk::CheckButton::with_label("sound when an agent needs me");
         {
             let send = send.clone();
             let refreshing = refreshing.clone();
@@ -251,27 +253,48 @@ impl Panel {
                 }
             });
         }
-        sbox.pack_start(&species, false, false, 0);
         sbox.pack_start(&evo, false, false, 0);
         sbox.pack_start(&sound, false, false, 0);
         sbox.pack_start(&walk, false, false, 0);
+        let quit = gtk::Button::with_label("quit pet");
+        quit.style_context().add_class("quit-btn");
+        {
+            let on_quit = on_quit.clone();
+            quit.connect_clicked(move |_| on_quit());
+        }
+        let quit_row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        quit_row.set_margin_top(4);
+        quit_row.pack_start(&quit, false, false, 0);
+        sbox.pack_start(&quit_row, false, false, 0);
         settings.add(&sbox);
         root.pack_start(&settings, false, false, 2);
 
         window.add(&root);
+        let place_at = Rc::new(std::cell::Cell::new((0, 0)));
+        {
+            let place_at = place_at.clone();
+            window.connect_map_event(move |w, _| {
+                let (x, y) = place_at.get();
+                if (x, y) != (0, 0) {
+                    w.move_(x, y);
+                }
+                glib::Propagation::Proceed
+            });
+        }
         Panel {
             window,
+            place_at,
             header,
             sub,
             xp_bar,
             chip,
             cards,
-            species,
+            send,
+            species_btns,
             evo,
             evo_forms,
             sound,
             walk,
-            card_paths,
             refreshing,
         }
     }
@@ -340,8 +363,6 @@ impl Panel {
         for child in self.cards.children() {
             self.cards.remove(&child);
         }
-        let mut paths = self.card_paths.borrow_mut();
-        paths.clear();
         for s in &snap.sessions {
             let row = gtk::ListBoxRow::new();
             row.set_margin_bottom(8);
@@ -390,14 +411,47 @@ impl Panel {
             card.pack_start(&title, false, false, 0);
             card.pack_start(&doing, false, false, 0);
             card.pack_start(&meta, false, false, 0);
-            row.add(&card);
+            // EventBox: gives the card its own GdkWindow so a plain click is
+            // delivered here regardless of ListBox selection/activation rules
+            let hit = gtk::EventBox::new();
+            hit.set_above_child(false);
+            hit.set_visible_window(false);
+            hit.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
+            hit.add(&card);
+            row.add(&hit);
+            {
+                // needles, most specific first: Claude Code writes the
+                // session title into the terminal title, so it beats the dir
+                let mut needles = vec![s.label.clone()];
+                if let Some(dir) = s.cwd.as_deref().and_then(|c| c.rsplit('/').next()) {
+                    needles.push(dir.to_string());
+                }
+                needles.push(s.project.clone());
+                let pids = s.term_pids.clone();
+                let path = s.path.clone();
+                let send = self.send.clone();
+                hit.connect_button_release_event(move |_, ev| {
+                    if ev.button() != 1 {
+                        return glib::Propagation::Proceed;
+                    }
+                    // click = you saw this session, and take me to it
+                    send(serde_json::json!({"cmd": "ack", "path": path}));
+                    crate::jump_to_terminal(&pids, &needles);
+                    glib::Propagation::Stop
+                });
+            }
             self.cards.add(&row);
-            paths.push(s.path.clone());
         }
         self.cards.show_all();
 
-        if self.species.active_id().map(|s| s.to_string()) != Some(pet.species.clone()) {
-            self.species.set_active_id(Some(&pet.species));
+        // ring the adopted species (only once hatched — an egg has none yet)
+        for (key, btn) in &self.species_btns {
+            let ctx = btn.style_context();
+            if pet.hatched && *key == pet.species {
+                ctx.add_class("selected");
+            } else {
+                ctx.remove_class("selected");
+            }
         }
         // evolution rollback dropdown — only once >1 form is unlocked
         if pet.hatched && pet.forms.len() > 1 {

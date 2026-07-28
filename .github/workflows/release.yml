@@ -55,9 +55,30 @@ jobs:
           lipo -create -output SessionPet SessionPet-arm64 SessionPet-x86_64
       - name: Package tarball
         run: |
-          mkdir -p session-pet/native
-          cp SessionPet session-pet/native/SessionPet
+          APP=session-pet/native/SessionPet.app
+          mkdir -p "$APP/Contents/MacOS"
+          cp SessionPet "$APP/Contents/MacOS/SessionPet"
+          cp SessionPet session-pet/native/SessionPet   # plain binary for CLI use
           cp native/assets.json session-pet/native/
+          # the .app is required, not cosmetic: macOS grants Automation (used to
+          # focus a terminal tab) only to apps with a bundle identifier
+          cat > "$APP/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key><string>SessionPet</string>
+            <key>CFBundleIdentifier</key><string>com.session-pet</string>
+            <key>CFBundleName</key><string>SessionPet</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>1.0</string>
+            <key>LSUIElement</key><true/>
+            <key>NSAppleEventsUsageDescription</key>
+            <string>session-pet focuses the terminal window running a coding session when you click its card.</string>
+          </dict>
+          </plist>
+          PLIST
+          codesign --force --sign - "$APP"
           tar -czf session-pet-macos.tar.gz session-pet
       - name: Upload to release
         uses: softprops/action-gh-release@v2

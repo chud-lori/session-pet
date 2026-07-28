@@ -16,8 +16,17 @@ let exeArg = CommandLine.arguments[0]
 let exeAbs = exeArg.hasPrefix("/") ? exeArg
     : FileManager.default.currentDirectoryPath + "/" + exeArg
 let exePath = (exeAbs as NSString).resolvingSymlinksInPath
-let petRoot = ((exePath as NSString).deletingLastPathComponent as NSString)
-    .deletingLastPathComponent
+// repo root = parent of the directory holding the executable — but inside an
+// .app the executable sits three levels deeper (SessionPet.app/Contents/
+// MacOS/SessionPet), and macOS only grants Automation to bundled apps, so
+// the shipped pet is always bundled.
+let petRoot: String = {
+    var dir = (exePath as NSString).deletingLastPathComponent  // …/MacOS or …/native
+    if dir.hasSuffix("/Contents/MacOS") {
+        for _ in 0..<3 { dir = (dir as NSString).deletingLastPathComponent }
+    }
+    return (dir as NSString).deletingLastPathComponent
+}()
 let statePath = "\(petRoot)/.state/state.json"
 let eventsPath = "\(petRoot)/.state/events.jsonl"
 let assetsPath = "\(petRoot)/native/assets.json"

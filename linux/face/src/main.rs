@@ -100,6 +100,7 @@ struct St {
     walking: bool,
     walk_target: Option<i32>,
     hidden_until: f64,
+    shaped_for: String, // species the input shape was built from
     // drag bookkeeping
     press_root: Option<(f64, f64)>,
     press_origin: (i32, i32),
@@ -204,6 +205,7 @@ fn main() {
         walking: false,
         walk_target: None,
         hidden_until: 0.0,
+        shaped_for: String::new(),
         press_root: None,
         press_origin: (0, 0),
         dragged: false,
@@ -237,7 +239,14 @@ fn main() {
         });
     }
 
-    let pet_panel = Rc::new(panel::Panel::new(&assets, send.clone()));
+    let on_quit: Rc<dyn Fn()> = {
+        let child = child.clone();
+        Rc::new(move || {
+            let _ = child.borrow_mut().kill();
+            gtk::main_quit();
+        })
+    };
+    let pet_panel = Rc::new(panel::Panel::new(&assets, send.clone(), on_quit));
     // transient-of-the-pet: Mutter keeps parentless Utility windows odd —
     // transient windows map reliably, stay on the pet's workspace and layer
     pet_panel.window.set_transient_for(Some(&window));
@@ -256,7 +265,6 @@ fn main() {
                 return glib::Propagation::Stop; // duplicate dispatch
             }
             s.last_press_t = ev.time();
-            eprintln!("[pet] press button={}", ev.button());
             if ev.button() == 1 {
                 s.press_root = Some(ev.root());
                 s.press_origin = win.position();
@@ -308,7 +316,6 @@ fn main() {
                         s.press_root = None;
                         s.dragged
                     };
-                    eprintln!("[pet] release dragged={dragged}");
                     if !dragged {
                         toggle_panel(&pet_panel, win, &st.borrow().snap, &assets);
                     }
@@ -341,6 +348,18 @@ fn main() {
                         window.show_all();
                     }
                     s.snap = snap;
+                    // the clickable silhouette follows the current sprite
+                    let key = if s.snap.pet.hatched {
+                        s.snap.pet.species.clone()
+                    } else {
+                        "egg".to_string()
+                    };
+                    if s.shaped_for != key {
+                        if let Some(sp) = assets.species.get(&key) {
+                            apply_input_shape(&window, sp, scale);
+                            s.shaped_for = key;
+                        }
+                    }
                     if pet_panel.window.is_visible() {
                         pet_panel.refresh(&s.snap, &assets);
                     }
@@ -396,6 +415,106 @@ fn main() {
     gtk::main();
 }
 
+/// Raise the terminal window running a session. The core hands us the agent
+/// process's ancestor pids; the terminal emulator is whichever toplevel
+/// window advertises one of them as _NET_WM_PID. Pure EWMH through GDK — no
+/// xdotool/wmctrl dependency. X11/XWayland only: Wayland has no protocol for
+/// focusing another application's window.
+pub fn jump_to_terminal(term_pids: &[i32], needles: &[String]) {
+    if term_pids.is_empty() {
+        return;
+    }
+    let Some(screen) = gdk::Screen::default() else { return };
+    let pid_atom = gdk::Atom::intern("_NET_WM_PID");
+    let cardinal = gdk::Atom::intern("CARDINAL");
+    let name_atom = gdk::Atom::intern("_NET_WM_NAME");
+    let utf8 = gdk::Atom::intern("UTF8_STRING");
+    let read_pid = |win: &gdk::Window| -> Option<i32> {
+        let (_, _, data) = gdk::property_get(win, &pid_atom, &cardinal, 0, 4, 0)?;
+        (data.len() >= 4).then(|| {
+            // X returns 32-bit properties as C longs (8 bytes on LP64); the
+            // value sits in the low bytes on every LE target we build for
+            u32::from_ne_bytes([data[0], data[1], data[2], data[3]]) as i32
+        })
+    };
+    let legacy_name = gdk::Atom::intern("WM_NAME");
+    let string_atom = gdk::Atom::intern("STRING");
+    let title = |win: &gdk::Window| -> String {
+        gdk::property_get(win, &name_atom, &utf8, 0, 1024, 0)
+            .or_else(|| gdk::property_get(win, &legacy_name, &string_atom, 0, 1024, 0))
+            .map(|(_, _, d)| String::from_utf8_lossy(&d).to_string())
+            .unwrap_or_default()
+    };
+    // window_stack is bottom-to-top; scan from the top so the most recently
+    // used window wins ties
+    let stack = screen.window_stack();
+    let matches: Vec<&gdk::Window> = stack
+        .iter()
+        .rev()
+        .filter(|w| read_pid(w).map_or(false, |p| term_pids.contains(&p)))
+        .collect();
+    // GNOME Terminal (Ubuntu's default), Konsole and Ghostty serve EVERY
+    // window from a single process, so _NET_WM_PID alone cannot tell their
+    // windows apart — disambiguate on the window title. Needles are ordered
+    // most-specific first: the session's own title (Claude Code writes it
+    // into the terminal title) beats the project directory.
+    let target = needles
+        .iter()
+        .filter(|n| !n.is_empty())
+        .find_map(|n| matches.iter().find(|w| title(w).contains(n.as_str())))
+        .or_else(|| matches.first());
+    if let Some(win) = target {
+        win.focus(gtk::current_event_time());
+    }
+}
+
+// Per-pixel hit testing. AppKit gives the mac pet this for free (clicks on
+// transparent parts of a window pass through); on X11 the window is a plain
+// rectangle, so clicks near the pet — empty corners, the effects area above
+// it — used to hit it. Restrict input to the sprite's opaque pixels (with
+// vertical slack for the bob/hop) plus the caption plate band.
+fn apply_input_shape(window: &gtk::Window, sp: &sprites::Species, scale: f64) {
+    let Some(gdk_win) = WidgetExt::window(window) else { return };
+    let (w, h) = (window.size().0 as f64, window.size().1 as f64);
+    let cols = sp.rows.first().map_or(16.0, |r| r.chars().count() as f64);
+    let rows_n = sp.rows.len() as f64;
+    let ox = (w - cols * scale) / 2.0;
+    let sprite_top = h - 3.5 * scale - rows_n * scale;
+    let slack = 2.6 * scale; // excite-hop reaches ~2.2 * scale
+    let region = gtk::cairo::Region::create();
+    for (y, row) in sp.rows.iter().enumerate() {
+        // one rect per run of opaque pixels, so the silhouette is exact
+        let mut run: Option<usize> = None;
+        let cells: Vec<bool> = row.chars().map(|c| c != '.').collect();
+        for x in 0..=cells.len() {
+            let solid = x < cells.len() && cells[x];
+            match (run, solid) {
+                (None, true) => run = Some(x),
+                (Some(start), false) => {
+                    let rx = ox + start as f64 * scale;
+                    let ry = sprite_top + y as f64 * scale - slack;
+                    let _ = region.union_rectangle(&gtk::cairo::RectangleInt::new(
+                        rx.floor() as i32,
+                        ry.floor() as i32,
+                        ((x - start) as f64 * scale).ceil() as i32,
+                        (scale + slack + scale * 0.5).ceil() as i32,
+                    ));
+                    run = None;
+                }
+                _ => {}
+            }
+        }
+    }
+    // caption plate + status dots band along the bottom (opaque, clickable)
+    let _ = region.union_rectangle(&gtk::cairo::RectangleInt::new(
+        0,
+        (h - 4.2 * scale) as i32,
+        w as i32,
+        (4.2 * scale).ceil() as i32,
+    ));
+    gdk_win.input_shape_combine_region(&region, 0, 0);
+}
+
 // wandering — port of App.swift updateWalk: occasionally amble a short
 // distance along the screen, little steps + facing flip. Stays put when
 // something needs attention, the panel is open, a drag is in progress, or
@@ -449,20 +568,49 @@ fn update_walk(s: &mut St, window: &gtk::Window, p: &panel::Panel) {
     }
 }
 
-fn toggle_panel(p: &panel::Panel, _pet_win: &gtk::Window, snap: &Snapshot, assets: &Assets) {
+// beside the pet, never on top of it (mac Panel behavior): left of the pet
+// when it fits, otherwise right; vertically aligned to the pet, clamped to
+// the monitor. The move itself happens on map (see Panel::place_at).
+fn place_panel(p: &panel::Panel, pet_win: &gtk::Window) {
+    let (px, py) = pet_win.position();
+    let (pet_w, pet_h) = pet_win.size();
+    let (pan_w, pan_h) = {
+        let (_, nat) = p.window.preferred_size();
+        (nat.width.max(340), nat.height.max(200))
+    };
+    let geo = gdk::Display::default()
+        .and_then(|d| {
+            d.monitor_at_point(px + pet_w / 2, py + pet_h / 2)
+                .or_else(|| d.primary_monitor())
+                .or_else(|| d.monitor(0))
+        })
+        .map(|m| m.geometry());
+    let (min_x, max_x, min_y, max_y) = match geo {
+        Some(g) => (
+            g.x() + 8,
+            g.x() + g.width() - pan_w - 8,
+            g.y() + 8,
+            g.y() + g.height() - pan_h - 8,
+        ),
+        None => (8, 8.max(1920 - pan_w - 8), 8, 8.max(1080 - pan_h - 8)),
+    };
+    let left = px - pan_w - 10;
+    let x = if left >= min_x { left } else { px + pet_w + 10 };
+    // bottom-align to the pet, like the mac panel
+    let y = py + pet_h - pan_h;
+    p.place_at
+        .set((x.clamp(min_x, max_x.max(min_x)), y.clamp(min_y, max_y.max(min_y))));
+}
+
+fn toggle_panel(p: &panel::Panel, pet_win: &gtk::Window, snap: &Snapshot, assets: &Assets) {
     if p.window.is_visible() {
         p.window.hide();
         return;
     }
     p.refresh(snap, assets);
+    place_panel(p, pet_win);
     p.window.show_all();
-    p.window.present(); // force map + raise — placement is WindowPosition::Mouse
-    eprintln!(
-        "[pet] panel shown: visible={} pos={:?} size={:?}",
-        p.window.is_visible(),
-        p.window.position(),
-        p.window.size()
-    );
+    p.window.present(); // force map + raise
 }
 
 fn show_menu(
@@ -477,9 +625,11 @@ fn show_menu(
     let open = gtk::MenuItem::with_label("Open panel");
     {
         let p = p.clone();
+        let win = win.clone();
         open.connect_activate(move |_| {
-            // refresh happens on the next snapshot; placement is Mouse
+            // refresh happens on the next snapshot
             if !p.window.is_visible() {
+                place_panel(&p, &win);
                 p.window.show_all();
                 p.window.present();
             }
@@ -552,9 +702,23 @@ fn load_css() {
             background-color: #26262e; border: 1px solid #45475a; }
         .pet-panel checkbutton:checked check { background-color: #a6e3a1;
             border-color: #a6e3a1; color: #181825; }
-        .pet-panel combobox button { background-image: none;
+        .pet-panel flowboxchild { padding: 0; background: transparent; }
+        .pet-panel .sprite-btn { background-image: none;
+            background-color: #26262e; border: 2px solid transparent;
+            border-radius: 8px; padding: 4px; min-width: 0; min-height: 0; }
+        .pet-panel .sprite-btn:hover { background-color: #33334a; }
+        .pet-panel .sprite-btn.selected { border-color: #a6e3a1;
+            background-color: #2c3a2e; }
+        .pet-panel .jump-btn { background-image: none; background: transparent;
+            color: #7f849c; padding: 0 4px; min-width: 0; min-height: 0;
+            border: none; }
+        .pet-panel .jump-btn:hover { color: #a6e3a1; }
+        .pet-panel .quit-btn { background-image: none;
             background-color: #26262e; color: #cdd6f4;
-            border: 1px solid #45475a; }
+            border: 1px solid #45475a; border-radius: 8px;
+            padding: 2px 12px; font-size: 12px; }
+        .pet-panel .quit-btn:hover { background-color: rgba(69, 37, 49, 0.9);
+            border-color: #f28ca8; color: #f28ca8; }
         ",
     );
     if let Some(screen) = gdk::Screen::default() {

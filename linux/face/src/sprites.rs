@@ -124,6 +124,20 @@ pub fn load_assets(assets_json: &str, sprites_dir: Option<&std::path::Path>) -> 
     Assets { order, species }
 }
 
+/// Render a species to a pixbuf for the settings picker — transparent
+/// background, nearest-neighbour crisp (every cell is a whole-pixel rect).
+pub fn sprite_pixbuf(sp: &Species, scale: f64) -> Option<gtk::gdk_pixbuf::Pixbuf> {
+    let cols = sp.rows.first()?.chars().count() as f64;
+    let (w, h) = ((cols * scale) as i32, (sp.rows.len() as f64 * scale) as i32);
+    let surface =
+        gtk::cairo::ImageSurface::create(gtk::cairo::Format::ARgb32, w, h).ok()?;
+    {
+        let ctx = Context::new(&surface).ok()?;
+        draw_sprite(&ctx, sp, scale, 0.0, 0.0, false, false, None);
+    } // ctx dropped → surface flushed
+    gtk::gdk::pixbuf_get_from_surface(&surface, 0, 0, w, h)
+}
+
 /// Draw at (ox, oy_top) — cairo y grows DOWN, row 0 is the sprite's top row.
 #[allow(clippy::too_many_arguments)]
 pub fn draw_sprite(

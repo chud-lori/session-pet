@@ -63,6 +63,10 @@ pub struct Session {
     #[allow(dead_code)]
     pub cwd: Option<String>,
     pub project: String,
+    /// ancestor pids of the agent process — the terminal window is the one
+    /// whose _NET_WM_PID is in here (empty = core couldn't identify it)
+    #[serde(default)]
+    pub term_pids: Vec<i32>,
 }
 
 #[derive(Deserialize, Clone)]

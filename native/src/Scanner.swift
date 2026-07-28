@@ -49,29 +49,9 @@ func tailLines(_ path: String, want: UInt64 = 65536) -> [String] {
 // but the process list can: open sessions run as `claude --resume <id-or-name>`.
 // Refreshed by the app every ~15s; matched against transcript filename stems
 // and rename names (agent-name / custom-title).
+// Populated by refreshAgentProcs (Jumper.swift), which parses the same `ps`
+// output it needs for the session → terminal map.
 var openSessionIDs: Set<String> = []
-
-func refreshOpenSessions() {
-    let p = Process()
-    p.executableURL = URL(fileURLWithPath: "/bin/ps")
-    p.arguments = ["-axo", "command="]
-    let pipe = Pipe()
-    p.standardOutput = pipe
-    p.standardError = FileHandle.nullDevice
-    guard (try? p.run()) != nil else { return }
-    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-    p.waitUntilExit()
-    var ids: Set<String> = []
-    for line in String(decoding: data, as: UTF8.self).split(separator: "\n") {
-        let parts = line.split(separator: " ").map(String.init)
-        guard let first = parts.first,
-              (first as NSString).lastPathComponent == "claude" else { continue }
-        if let i = parts.firstIndex(of: "--resume"), i + 1 < parts.count {
-            ids.insert(parts[i + 1])
-        }
-    }
-    openSessionIDs = ids
-}
 
 // the session's START directory = the cwd on the earliest events; immutable,
 // so cached forever per path ("" caches a miss)

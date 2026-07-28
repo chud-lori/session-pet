@@ -231,27 +231,103 @@ def tail_lines(path, want=65536):
 # Refreshed every ~15s; matched against transcript filename stems and rename
 # names (agent-name / custom-title).
 open_session_ids = set()
+# path → {"pid", "cwd", "resume", "chain"} for the process running that
+# session; "chain" is the ancestor pid list the face matches against
+# _NET_WM_PID to find (and raise) the terminal window. See jump support.
+agent_procs = {}
 
 
-def refresh_open_sessions():
-    global open_session_ids
+def _proc_stat_ppid(pid):
     try:
-        out = subprocess.run(["ps", "-axo", "command="],
-                             capture_output=True, text=True, timeout=10).stdout
-    except (OSError, subprocess.SubprocessError):
-        return
+        with open(f"/proc/{pid}/stat", "rb") as f:
+            data = f.read()
+    except OSError:
+        return None
+    # comm (field 2) may contain spaces/parens — split after the LAST ')'
+    close = data.rfind(b")")
+    if close < 0:
+        return None
+    rest = data[close + 2:].split(b" ")
+    try:
+        return int(rest[1])  # state, ppid
+    except (IndexError, ValueError):
+        return None
+
+
+def _proc_cmdline(pid):
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            raw = f.read()
+    except OSError:
+        return []
+    return [a for a in raw.decode("utf-8", "replace").split("\0") if a]
+
+
+def refresh_open_sessions(sessions=()):
+    """Scan /proc once: which sessions are open, and what runs each of them.
+
+    Everything comes from /proc — no ps, no lsof, no external tools. Agent
+    processes are found by argv[0], their cwd by the /proc/<pid>/cwd symlink,
+    and their ancestry by walking ppid up to (but not including) init.
+    """
+    global open_session_ids, agent_procs
     ids = set()
-    for line in out.split("\n"):
-        parts = line.split()
-        if not parts or os.path.basename(parts[0]) != "claude":
+    candidates = []
+    try:
+        pids = [int(d) for d in os.listdir("/proc") if d.isdigit()]
+    except OSError:
+        return
+    for pid in pids:
+        argv = _proc_cmdline(pid)
+        if not argv:
             continue
+        # argv[0] is the agent only for native installs; an npm install runs
+        # it as `node …/bin/claude`, and wrappers/shims add more layers — so
+        # look for the agent anywhere in the leading arguments
+        if not any(os.path.basename(a) in ("claude", "codex")
+                   for a in argv[:3]):
+            continue
+        resume = None
+        if "--resume" in argv:
+            i = argv.index("--resume")
+            if i + 1 < len(argv):
+                resume = argv[i + 1]
+                ids.add(resume)
         try:
-            i = parts.index("--resume")
-        except ValueError:
-            continue
-        if i + 1 < len(parts):
-            ids.add(parts[i + 1])
+            cwd = os.readlink(f"/proc/{pid}/cwd")
+        except OSError:
+            cwd = None
+        candidates.append({"pid": pid, "cwd": cwd, "resume": resume})
     open_session_ids = ids
+
+    procs = {}
+    for sess in sessions:
+        stem = os.path.splitext(os.path.basename(sess["path"]))[0]
+        want = sess.get("cwd")
+        if want and want.startswith("~"):
+            want = HOME + want[1:]
+        match = None
+        for c in candidates:
+            if c["resume"] and c["resume"] == stem:
+                match = c
+                break
+            if want and c["cwd"] == want:
+                match = c
+                break
+        if not match:
+            continue
+        # ancestor chain: the terminal emulator is one of these pids
+        chain, pid = [], match["pid"]
+        for _ in range(20):
+            ppid = _proc_stat_ppid(pid)
+            if not ppid or ppid <= 1:
+                break
+            chain.append(ppid)
+            pid = ppid
+        procs[sess["path"]] = {**match, "chain": chain}
+    agent_procs = procs
+    log(f"agents: {len(candidates)} found, {len(procs)} matched to sessions; "
+        f"cwds={[c['cwd'] for c in candidates]}")
 
 
 # the session's START directory = the cwd on the earliest events; immutable,
@@ -808,8 +884,10 @@ class Core:
     def poll(self):
         now = time.time()
         if now - self.last_ps_scan > 15:
+            # matched against the previous tick's sessions so open_session_ids
+            # is already fresh when scan_sessions runs below
             self.last_ps_scan = now
-            refresh_open_sessions()
+            refresh_open_sessions(self.prev_sessions)
         self.read_events()
         sessions = scan_sessions()
         for s in sessions:
@@ -901,7 +979,10 @@ class Core:
                 "sound": bool(state.get("sound", True)),
                 "walk": bool(state.get("walk", True)),
             },
-            "sessions": sessions,
+            "sessions": [
+                {**s, "term_pids": agent_procs.get(s["path"], {}).get("chain", [])}
+                for s in sessions
+            ],
         }
 
     # --- face → core commands
@@ -955,7 +1036,9 @@ def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "--serve"
     core = Core()
     if mode == "--once":
-        refresh_open_sessions()
+        snap = core.poll()
+        # the first pass had no session list to match processes against
+        refresh_open_sessions(snap["sessions"])
         snap = core.poll()
         json.dump(snap, sys.stdout, indent=2)
         print()

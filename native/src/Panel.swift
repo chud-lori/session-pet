@@ -13,12 +13,14 @@ class FlippedView: NSView {
 
 class ClickableCard: FlippedView {
     var onClick: (() -> Void)?
+    var onRightClick: (() -> Void)?
     private var downAt: NSPoint = .zero
     override func mouseDown(with event: NSEvent) { downAt = NSEvent.mouseLocation }
     override func mouseUp(with event: NSEvent) {
         let m = NSEvent.mouseLocation
         if abs(m.x - downAt.x) + abs(m.y - downAt.y) < 6 { onClick?() }
     }
+    override func rightMouseUp(with event: NSEvent) { onRightClick?() }
 }
 
 // one PERSISTENT expandable card per session (code-island style): the surface
@@ -76,6 +78,7 @@ final class SessionCard: ClickableCard {
         for v in [badgePill, ageLabel, titleLabel, status, pathLabel, meta, snippet] {
             addSubview(v)
         }
+        toolTip = "click to jump to this session's terminal · right-click for details"
     }
 
     required init?(coder: NSCoder) { fatalError("unused") }
@@ -471,9 +474,12 @@ final class Panel {
             }
             card.update(sess, open: expanded.contains(sess.path), width: 332)
             card.setFrameOrigin(NSPoint(x: 0, y: y))
+            // whole card = jump target (a 16pt arrow was too small to hit);
+            // details move to right-click
+            card.onRightClick = { [weak self] in self?.toggleCard(sess.path) }
             card.onClick = { [weak self] in
                 self?.onCardClick?(sess) // per-card ack
-                self?.toggleCard(sess.path)
+                jumpToTerminal(sess)
             }
             y += card.frame.height + 8
         }

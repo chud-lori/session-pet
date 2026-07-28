@@ -52,19 +52,43 @@ if [ "${1:-}" = "--uninstall" ]; then
 fi
 
 if [ -d "$ROOT/native/src" ]; then
-  BIN="$ROOT/native/SessionPet"
   mkdir -p "$ROOT/.state"  # fresh clones ship without it; the pet/hook need it
 
   echo "▸ exporting sprite assets"
   python3 "$ROOT/native/export_assets.py"
 
   echo "▸ building native pet"
-  swiftc -O "$ROOT"/native/src/*.swift -o "$BIN"
+  swiftc -O "$ROOT"/native/src/*.swift -o "$ROOT/native/SessionPet"
+
+  # Wrap it in an .app bundle. macOS only grants Automation (needed to focus
+  # a terminal tab) to apps with a bundle identifier — a bare executable is
+  # denied silently, so jump-to-terminal would never work from launchd.
+  APP="$ROOT/native/SessionPet.app"
+  mkdir -p "$APP/Contents/MacOS"
+  cp "$ROOT/native/SessionPet" "$APP/Contents/MacOS/SessionPet"
+  cat > "$APP/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key><string>SessionPet</string>
+  <key>CFBundleIdentifier</key><string>com.session-pet</string>
+  <key>CFBundleName</key><string>SessionPet</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>LSUIElement</key><true/>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>session-pet focuses the terminal window running a coding session when you click its card.</string>
+</dict>
+</plist>
+PLIST
+  # ad-hoc sign so TCC can identify the bundle stably across rebuilds
+  codesign --force --sign - "$APP" >/dev/null 2>&1 || true
+  BIN="$APP/Contents/MacOS/SessionPet"
 else
   # curl | sh without a clone: prebuilt universal binary + assets tarball,
   # unpacked to the same layout the app expects (state lives inside it)
   ROOT="$HOME/.local/share/session-pet"
-  BIN="$ROOT/native/SessionPet"
   echo "▸ downloading prebuilt universal binary"
   mkdir -p "$ROOT/.state"
   TARBALL="$(mktemp)"
@@ -76,6 +100,9 @@ else
   }
   tar -xzf "$TARBALL" -C "$ROOT" --strip-components 1
   rm -f "$TARBALL"
+  # prefer the bundled app — only a bundle can hold Automation permission
+  BIN="$ROOT/native/SessionPet.app/Contents/MacOS/SessionPet"
+  [ -x "$BIN" ] || BIN="$ROOT/native/SessionPet"
 fi
 
 if [ "${1:-}" = "--login-item" ]; then
