@@ -223,6 +223,37 @@ PIXELS = {
         "ktktttkttk..kkkkkkkkkkkk........",
         "kkkkkkkkkk......................",
     ]},
+    # grid-sampled from a Dota 2 Pudge pixel-art reference (28x23) — wider
+    # than the 16px species, so renderers shrink the cells to match the
+    # footprint. w is the eye (blanks when sleeping); G is the mohawk, not an
+    # eye char, so it survives a blink.
+    "pudge": {"palette": {"X": "#e8a0a4", "l": "#f4c4c2", "d": "#a95a5e", "k": "#14101c",
+                          "w": "#fff4d8", "G": "#3f6b33", "n": "#146157", "t": "#ddc9b0",
+                          "r": "#6b1414", "R": "#b0202c", "b": "#4a5462"}, "rows": [
+        "..........kkk...............",
+        "........kkGGGk..............",
+        ".......kkkGGGkk.............",
+        "......kkdXXXXXk.............",
+        "...kkkkkkXXXXXkkkk..........",
+        "..kkXdkXkkXdXlkdbkk.........",
+        ".kdXXdkXddXXXdkdrXXk........",
+        ".kdXXddkdXwkwXkrbXXk..kk....",
+        "kdddddXkdlllllkXkdddk.klrk..",
+        "dddkkXXtkdXXXktXXkdddkklbrk.",
+        "dddkkdXtXkkkkXtXkkdddkkkbRk.",
+        "rddkkdtRXXddXrttkkkdrkkkbbRk",
+        "krkddXRRtXXXrdRtXdkrkbkkbbRk",
+        "krkddtRrtXXXrRRtXXdrkbbkkbRk",
+        "kkkddtrtRRRttRRrttdkkkkkkbRk",
+        "k.kkdtrttRtttRrrrkk.kkk.kkRk",
+        "..kkkkrrtRrRttrtdkk......kr.",
+        "..knnndrrrrrrdddnnnk.....kk.",
+        ".kknnnkrRttRttdknnnk.....k..",
+        "kkknnnkdRrttttkknnnkk.......",
+        "kkkkkkkkrttttdkkkkkkk.......",
+        "kddkkk..kkkkkk.kkkddk.......",
+        "XXXXk...........kdXXXk......",
+    ]},
     "fox": {"palette": {"X": "#f28c4b", "d": "#d97636", "o": "#26262e", "w": "#ffffff",
                         "W": "#fdf3e3", "p": "#e8828f", "k": "#4a3326"}, "rows": [
         "..kk........kk..",
