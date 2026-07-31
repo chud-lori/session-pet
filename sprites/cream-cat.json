@@ -1,0 +1,66 @@
+{
+  "name": "Miso",
+  "emoji": "\ud83d\udc31",
+  "palette": {
+    "X": "#f3e4c7",
+    "s": "#e2c99b",
+    "d": "#d8bd93",
+    "o": "#26262e",
+    "w": "#ffffff",
+    "p": "#f0a5bb",
+    "k": "#8a7859"
+  },
+  "rows": [
+    "..kk........kk..",
+    ".kXXk......kXXk.",
+    ".kXpXk....kXpXk.",
+    ".kXXXXkkkkXXXXk.",
+    ".kXXXsXssXsXXXk.",
+    "kXXsXXXXXXXXsXXk",
+    "kXXooXXXXXXooXXk",
+    "kXXowXXXXXXowXXk",
+    "kXXXXXXkppkXXXXk",
+    "kdXXXXXXXXXXXXdk",
+    ".kXsXXsXXsXXsXk.",
+    "..kXsXXsXXsXXk..",
+    "..kXXXXXXXXXXk..",
+    "..kdXXk..kXXdk..",
+    "...kk......kk..."
+  ],
+  "walk": [
+    [
+      "..kk........kk..",
+      ".kXXk......kXXk.",
+      ".kXpXk....kXpXk.",
+      ".kXXXXkkkkXXXXk.",
+      ".kXXXsXssXsXXXk.",
+      "kXXsXXXXXXXXsXXk",
+      "kXXooXXXXXXooXXk",
+      "kXXowXXXXXXowXXk",
+      "kXXXXXXkppkXXXXk",
+      "kdXXXXXXXXXXXXdk",
+      ".kXsXXsXXsXXsXk.",
+      "..kXsXXsXXsXXk..",
+      "..kXXXXXXXXXXk..",
+      "..kdXXk..kXXdk..",
+      "..kk........kk.."
+    ],
+    [
+      "..kk........kk..",
+      ".kXXk......kXXk.",
+      ".kXpXk....kXpXk.",
+      ".kXXXXkkkkXXXXk.",
+      ".kXXXsXssXsXXXk.",
+      "kXXsXXXXXXXXsXXk",
+      "kXXooXXXXXXooXXk",
+      "kXXowXXXXXXowXXk",
+      "kXXXXXXkppkXXXXk",
+      "kdXXXXXXXXXXXXdk",
+      ".kXsXXsXXsXXsXk.",
+      "..kXsXXsXXsXXk..",
+      "..kXXXXXXXXXXk..",
+      "..kdXXk..kXXdk..",
+      "....kk....kk...."
+    ]
+  ]
+}

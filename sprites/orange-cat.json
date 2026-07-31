@@ -1,0 +1,66 @@
+{
+  "name": "Tora",
+  "emoji": "\ud83d\udc2f",
+  "palette": {
+    "X": "#f0a04b",
+    "s": "#d9812f",
+    "d": "#c97b2e",
+    "o": "#26262e",
+    "w": "#ffffff",
+    "p": "#f7c8a0",
+    "k": "#5a3a22"
+  },
+  "rows": [
+    "..kk........kk..",
+    ".kXXk......kXXk.",
+    ".kXpXk....kXpXk.",
+    ".kXXXXkkkkXXXXk.",
+    ".kXXXsXssXsXXXk.",
+    "kXXsXXXXXXXXsXXk",
+    "kXXooXXXXXXooXXk",
+    "kXXowXXXXXXowXXk",
+    "kXXXXXXkppkXXXXk",
+    "kdXXXXXXXXXXXXdk",
+    ".kXsXXsXXsXXsXk.",
+    "..kXsXXsXXsXXk..",
+    "..kXXXXXXXXXXk..",
+    "..kdXXk..kXXdk..",
+    "...kk......kk..."
+  ],
+  "walk": [
+    [
+      "..kk........kk..",
+      ".kXXk......kXXk.",
+      ".kXpXk....kXpXk.",
+      ".kXXXXkkkkXXXXk.",
+      ".kXXXsXssXsXXXk.",
+      "kXXsXXXXXXXXsXXk",
+      "kXXooXXXXXXooXXk",
+      "kXXowXXXXXXowXXk",
+      "kXXXXXXkppkXXXXk",
+      "kdXXXXXXXXXXXXdk",
+      ".kXsXXsXXsXXsXk.",
+      "..kXsXXsXXsXXk..",
+      "..kXXXXXXXXXXk..",
+      "..kdXXk..kXXdk..",
+      "..kk........kk.."
+    ],
+    [
+      "..kk........kk..",
+      ".kXXk......kXXk.",
+      ".kXpXk....kXpXk.",
+      ".kXXXXkkkkXXXXk.",
+      ".kXXXsXssXsXXXk.",
+      "kXXsXXXXXXXXsXXk",
+      "kXXooXXXXXXooXXk",
+      "kXXowXXXXXXowXXk",
+      "kXXXXXXkppkXXXXk",
+      "kdXXXXXXXXXXXXdk",
+      ".kXsXXsXXsXXsXk.",
+      "..kXsXXsXXsXXk..",
+      "..kXXXXXXXXXXk..",
+      "..kdXXk..kXXdk..",
+      "....kk....kk...."
+    ]
+  ]
+}

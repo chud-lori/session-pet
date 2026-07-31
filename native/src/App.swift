@@ -24,12 +24,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow!
     var view: PetView!
     var petPanel = Panel()
+    var bubble = Bubble()
+    var touchBar = TouchBarController()
     var lastPoll = 0.0, lastSound = 0.0, lastPing = 0.0, lastPsScan = 0.0
     var hiddenUntil = 0.0  // movie mode: window hidden until then (or input alert)
     var realerts: [String: (key: String, count: Int, lastAt: Double)] = [:]
     var evOffset: UInt64 = 0, evPrimed = false
     var notif: [String: (Double, String)] = [:]
     var prevPhases: [String: String] = [:]
+    // marquee dismissal: clicking the pet hides the Touch Bar marquee and keeps
+    // it hidden until the set of attention-needing sessions actually CHANGES
+    var lastAttnKey = "", suppressedAttnKey: String? = nil
     // path → snippet acked by clicking that session's card; keyed by snippet
     // (stable per turn) so post-turn housekeeping writes don't re-nag
     var acked: [String: String] = [:]
@@ -54,7 +59,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         window.makeKeyAndOrderFront(nil)
 
-        view.onClick = { [weak self] in self?.togglePanel() }
+        view.onClick = { [weak self] in
+            guard let self else { return }
+            // clicking the pet dismisses the marquee (you've seen it) until
+            // something new needs attention
+            self.suppressedAttnKey = self.lastAttnKey
+            self.touchBar.hide()
+            self.togglePanel()
+        }
         petPanel.onPick = { [weak self] key in
             var st = loadState()
             st["species"] = key
@@ -167,6 +179,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                          sessions: view.sessions, nInput: nInput)
     }
 
+    // the three things worth a spoken callout, mapped from session phase:
+    //   input + "permission" message → a permission prompt is blocking
+    //   input (AskUserQuestion / ExitPlanMode) → a decision is waiting
+    //   ready → the agent just finished a turn
+    // returns nil for phases the pet shouldn't announce.
+    func callout(for s: SessionInfo, phase: String) -> (String, NSColor)? {
+        let name = String(s.project.prefix(24))
+        switch phase {
+        case "input":
+            return s.doing.lowercased().contains("permission")
+                ? ("🔒 needs permission · \(name)", cInput)
+                : ("🤔 needs a decision · \(name)", cWarn)
+        case "ready":
+            return ("✅ finished · \(name)", cAccent)
+        case "stalled":
+            return ("⚠️ may need you · \(name)", cStalled)
+        default:
+            return nil
+        }
+    }
+
+    // the marquee line: WHAT the session needs · its NAME — its LAST message.
+    // reuses callout() for the "what · who" head, then appends the last agent
+    // text (falling back to the phase's own blurb when there's no snippet).
+    func marqueeLine(_ s: SessionInfo) -> String? {
+        guard let (head, _) = callout(for: s, phase: s.phase) else { return nil }
+        let last = s.snippet.isEmpty ? s.doing : s.snippet
+        return last.isEmpty ? head : "\(head) — \(last)"
+    }
+
+    func announce(_ s: SessionInfo, phase: String) {
+        guard let (text, color) = callout(for: s, phase: phase) else { return }
+        bubble.show(text, color: color, over: window.frame)
+    }
+
     func readEvents() {
         guard let attrs = try? FileManager.default.attributesOfItem(atPath: eventsPath),
               let size = (attrs[.size] as? NSNumber)?.uint64Value else {
@@ -250,6 +297,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             let phases = Dictionary(uniqueKeysWithValues: sessions.map { ($0.path, $0.phase) })
+            let byPath = Dictionary(uniqueKeysWithValues: sessions.map { ($0.path, $0) })
             var state = loadState()
             for (path, ph) in phases {
                 let prev = prevPhases[path]
@@ -265,6 +313,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     view.alertUntil = now + 5
                     view.exciteUntil = now + 3  // visible even when muted
                     playSound(.input, state: state, now: now)
+                    if let s = byPath[path] { announce(s, phase: "input") }
                 } else if (prev == "working" || prev == "busy" || prev == "stalled")
                             && ph == "ready" {
                     // stalled counts too: a long-silent session that finally
@@ -272,6 +321,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     view.alertUntil = now + 5
                     view.exciteUntil = now + 3  // visible even when muted
                     playSound(.ready, state: state, now: now)
+                    if let s = byPath[path] { announce(s, phase: "ready") }
                     var bank = state["sessions"] as? [String: Any] ?? [:]
                     bank["window"] = ((bank["window"] as? NSNumber)?.intValue ?? 0) + 5
                     state["sessions"] = bank
@@ -292,6 +342,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     view.exciteUntil = now + 3  // visible even when muted
                     lastPing = 0  // re-alert bypasses the debounce window
                     playSound(.input, state: state, now: now)
+                    announce(s, phase: "input")  // re-nag the callout too
                 }
                 realerts[s.path] = r
             }
@@ -305,11 +356,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ($0.phase == "ready" || $0.phase == "input" || $0.phase == "stalled")
                     && acked[$0.path] != ackKey($0)
             }
+            // Touch Bar marquee: while something unacked needs you, scroll the
+            // most urgent session (input > stalled > ready); clear when nothing
+            // does. Kept in the poll block so it tracks state, not every frame.
+            func rank(_ p: String) -> Int { p == "input" ? 0 : (p == "stalled" ? 1 : 2) }
+            let attn = sessions.filter {
+                ($0.phase == "input" || $0.phase == "stalled" || $0.phase == "ready")
+                    && acked[$0.path] != ackKey($0)
+            }.sorted { rank($0.phase) < rank($1.phase) }
+            // signature of the current attention set — changes when a session
+            // finishes a new turn or a different one starts needing you, which
+            // re-arms the marquee after a click-dismiss
+            lastAttnKey = attn.map { "\($0.path)|\(ackKey($0))" }.joined(separator: ",")
+            if attn.isEmpty { suppressedAttnKey = nil }
+            if let s = attn.first, let line = marqueeLine(s),
+               suppressedAttnKey != lastAttnKey {
+                touchBar.show(line)
+            } else {
+                touchBar.hide()
+            }
             view.sessions = sessions
             view.state = loadState()
             if petPanel.panel.isVisible { refreshPanel() }
         }
         updateWalk()
+        bubble.reposition(over: window.frame)  // keep the callout glued to the pet
         view.frameCount += 1
         view.needsDisplay = true
     }

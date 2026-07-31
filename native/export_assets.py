@@ -10,6 +10,16 @@ PIXELS (pet_window.py) or SPECIES (pet.py):
 import json
 import os
 import sys
+import types
+
+# pet_window imports tkinter at module load, but this export only reads its
+# PIXELS map — no GUI is ever built. Stub tkinter so the export runs on any
+# python3, including builds (e.g. asdf) compiled without the _tkinter C
+# extension (importing the tkinter package succeeds but blows up on _tkinter).
+try:
+    __import__("tkinter")
+except Exception:
+    sys.modules["tkinter"] = types.ModuleType("tkinter")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pet

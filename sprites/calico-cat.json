@@ -1,0 +1,67 @@
+{
+  "name": "Pumpkin",
+  "emoji": "\ud83d\udc08",
+  "palette": {
+    "X": "#f5ecd8",
+    "s": "#eb9a4d",
+    "m": "#4a4048",
+    "d": "#d8bd93",
+    "o": "#26262e",
+    "w": "#ffffff",
+    "p": "#f0a5bb",
+    "k": "#8a7859"
+  },
+  "rows": [
+    "..kk........kk..",
+    ".kXXk......kXXk.",
+    ".kXpXk....kXpXk.",
+    ".kmXXXkkkkXXXsk.",
+    ".kXmmXXXXXXXXXk.",
+    "kXmXXXXXXXXXXXXk",
+    "kXXooXXXXXXooXXk",
+    "kXXowXXXXXXowXXk",
+    "kXXXXXXkppkXXXXk",
+    "kdXXXXXXXXXXXXdk",
+    ".kXXXXXXXsssXXk.",
+    "..kXXXXXssXXXk..",
+    "..kXXXXXsXXXXk..",
+    "..kdXXk..kXXdk..",
+    "...kk......kk..."
+  ],
+  "walk": [
+    [
+      "..kk........kk..",
+      ".kXXk......kXXk.",
+      ".kXpXk....kXpXk.",
+      ".kmXXXkkkkXXXsk.",
+      ".kXmmXXXXXXXXXk.",
+      "kXmXXXXXXXXXXXXk",
+      "kXXooXXXXXXooXXk",
+      "kXXowXXXXXXowXXk",
+      "kXXXXXXkppkXXXXk",
+      "kdXXXXXXXXXXXXdk",
+      ".kXXXXXXXsssXXk.",
+      "..kXXXXXssXXXk..",
+      "..kXXXXXsXXXXk..",
+      "..kdXXk..kXXdk..",
+      "..kk........kk.."
+    ],
+    [
+      "..kk........kk..",
+      ".kXXk......kXXk.",
+      ".kXpXk....kXpXk.",
+      ".kmXXXkkkkXXXsk.",
+      ".kXmmXXXXXXXXXk.",
+      "kXmXXXXXXXXXXXXk",
+      "kXXooXXXXXXooXXk",
+      "kXXowXXXXXXowXXk",
+      "kXXXXXXkppkXXXXk",
+      "kdXXXXXXXXXXXXdk",
+      ".kXXXXXXXsssXXk.",
+      "..kXXXXXssXXXk..",
+      "..kXXXXXsXXXXk..",
+      "..kdXXk..kXXdk..",
+      "....kk....kk...."
+    ]
+  ]
+}
