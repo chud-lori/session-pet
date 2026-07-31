@@ -298,7 +298,9 @@ CODEX_GLOB = os.path.expanduser("~/.codex/sessions/*/*/*/rollout-*.jsonl")
 def eff_scale(key, scale):
     """Per-sprite cell size: 16px maps draw at `scale`, denser maps smaller."""
     cols = len(PIXELS.get(key, PIXELS["cat"])["rows"][0])
-    return max(1, scale * SPRITE_COLS // cols)
+    # round, don't floor: 64 // 23 = 2 leaves agumon visibly undersized,
+    # round(64 / 23) = 3 lands much closer to the 16px footprint
+    return max(1, round(scale * SPRITE_COLS / cols))
 
 
 def paint_pixels(canvas, key, scale, ox, oy, eyes_closed=False):

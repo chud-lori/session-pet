@@ -36,6 +36,7 @@ SPECIES = {
     "octopus": {"name": "Inky",   "emoji": "🐙", "working": ["⌨️", "🖋️"], "waiting": ["❓", "🫧"], "sleeping": ["💤", "🌊"]},
     "dino":    {"name": "Rex",    "emoji": "🦖", "working": ["⚡", "💥"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🌋"]},
     "agumon":  {"name": "Agumon", "emoji": "🦕", "working": ["🔥", "💥"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🔥"],
+                # keep in sync with EVOLVE in linux/core.py (stdlib-only copy)
                 "evolve": {"at": "adult", "to": "greymon"}},
     # evolved form: never in the picker (hidden) — you earn it by reaching the
     # "at" stage above with the base species selected
