@@ -35,6 +35,13 @@ SPECIES = {
     "crab":    {"name": "Clicky", "emoji": "🦀", "working": ["🔧", "⚙️"], "waiting": ["❓", "🫧"], "sleeping": ["💤", "🌊"]},
     "octopus": {"name": "Inky",   "emoji": "🐙", "working": ["⌨️", "🖋️"], "waiting": ["❓", "🫧"], "sleeping": ["💤", "🌊"]},
     "dino":    {"name": "Rex",    "emoji": "🦖", "working": ["⚡", "💥"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🌋"]},
+    "agumon":  {"name": "Agumon", "emoji": "🦕", "working": ["🔥", "💥"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🔥"],
+                # keep in sync with EVOLVE in linux/core.py (stdlib-only copy)
+                "evolve": {"at": "adult", "to": "greymon"}},
+    # evolved form: never in the picker (hidden) — you earn it by reaching the
+    # "at" stage above with the base species selected
+    "greymon": {"name": "Greymon", "emoji": "🦖", "working": ["🔥", "💥"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🔥"],
+                "hidden": True},
     "fox":     {"name": "Kit",    "emoji": "🦊", "working": ["✨", "🍃"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🌙"]},
     "alien":   {"name": "Zorp",   "emoji": "👾", "working": ["📡", "⚡"], "waiting": ["❓", "🛸"], "sleeping": ["💤", "🌌"]},
     "turtle":  {"name": "Sage",   "emoji": "🐢", "working": ["🧘", "✨"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🍵"]},
@@ -85,6 +92,29 @@ def stage_for(xp):
     return stage, lo, hi
 
 
+def evolution_chain(species_key, stage):
+    """Forms unlocked at this stage, base species first: SPECIES 'evolve'
+    rules that have triggered (agumon → [agumon, greymon] at adult)."""
+    order = [name for _, name in STAGES]
+    si = order.index(stage) if stage in order else 0
+    chain = [species_key]
+    while True:
+        ev = SPECIES.get(species_key, {}).get("evolve")
+        if (not ev or ev["at"] not in order or si < order.index(ev["at"])
+                or ev["to"] in chain):
+            break
+        species_key = ev["to"]
+        chain.append(species_key)
+    return chain
+
+
+def sprite_for(species_key, stage, form=None):
+    """Species key to actually show: the latest unlocked evolution, unless the
+    user rolled back to an earlier unlocked form (state['form'])."""
+    chain = evolution_chain(species_key, stage)
+    return form if form in chain else chain[-1]
+
+
 def progress_bar(xp, lo, hi, width=5):
     if hi is None:
         return "▰" * width
@@ -108,9 +138,10 @@ def agent_state(transcript_path):
 
 
 def render_pet(state, mode):
-    species = SPECIES.get(state.get("species", DEFAULT_SPECIES), SPECIES[DEFAULT_SPECIES])
     xp = total_xp(state)
     stage, lo, hi = stage_for(xp)
+    key = sprite_for(state.get("species", DEFAULT_SPECIES), stage, state.get("form"))
+    species = SPECIES.get(key, SPECIES[DEFAULT_SPECIES])
     frame_i = int(time.time() * 2)
 
     if stage == "egg" and not state.get("hatched"):
@@ -179,9 +210,11 @@ def cli(args):
     state = load_state()
     if args[0] == "species":
         for key, sp in SPECIES.items():
+            if sp.get("hidden"):
+                continue  # evolved forms are earned, not picked
             marker = "←" if key == state.get("species", DEFAULT_SPECIES) else " "
             print("%s %-8s %s %s" % (sp["emoji"], key, sp["name"], marker))
-    elif args[0] == "set" and len(args) == 3 and args[1] in ("species", "name"):
+    elif args[0] == "set" and len(args) == 3 and args[1] in ("species", "name", "form"):
         if args[1] == "species" and args[2] not in SPECIES:
             print("unknown species %r — run `pet.py species`" % args[2])
             return
@@ -191,7 +224,9 @@ def cli(args):
     elif args[0] == "status":
         xp = total_xp(load_state())
         stage, lo, hi = stage_for(xp)
-        sp = SPECIES.get(state.get("species", DEFAULT_SPECIES), SPECIES[DEFAULT_SPECIES])
+        key = sprite_for(state.get("species", DEFAULT_SPECIES), stage,
+                         state.get("form"))
+        sp = SPECIES.get(key, SPECIES[DEFAULT_SPECIES])
         name = "???" if stage == "egg" else (state.get("name") or sp["name"])
         print("%s %s — %s, %d XP %s" % (sp["emoji"], name, stage, xp, progress_bar(xp, lo, hi)))
     else:

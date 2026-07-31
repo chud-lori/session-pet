@@ -348,9 +348,14 @@ fn main() {
                         window.show_all();
                     }
                     s.snap = snap;
-                    // the clickable silhouette follows the current sprite
+                    // the clickable silhouette follows the drawn sprite,
+                    // which diverges from species after evolution
                     let key = if s.snap.pet.hatched {
-                        s.snap.pet.species.clone()
+                        s.snap
+                            .pet
+                            .sprite
+                            .clone()
+                            .unwrap_or_else(|| s.snap.pet.species.clone())
                     } else {
                         "egg".to_string()
                     };
@@ -478,9 +483,14 @@ fn apply_input_shape(window: &gtk::Window, sp: &sprites::Species, scale: f64) {
     let (w, h) = (window.size().0 as f64, window.size().1 as f64);
     let cols = sp.rows.first().map_or(16.0, |r| r.chars().count() as f64);
     let rows_n = sp.rows.len() as f64;
-    let ox = (w - cols * scale) / 2.0;
-    let sprite_top = h - 3.5 * scale - rows_n * scale;
-    let slack = 2.6 * scale; // excite-hop reaches ~2.2 * scale
+    // mirror draw_sprite's density normalization: cells shrink so any map
+    // occupies the same footprint as a 16px one
+    let es = scale * 16.0 / cols;
+    let ox = (w - 16.0 * scale) / 2.0;
+    let sprite_top = h - 3.5 * scale - rows_n * es;
+    // slack stays in window pixels — hop/bob distances scale with `scale`,
+    // not with cell size (excite-hop reaches ~2.2 * scale)
+    let slack = 2.6 * scale;
     let region = gtk::cairo::Region::create();
     for (y, row) in sp.rows.iter().enumerate() {
         // one rect per run of opaque pixels, so the silhouette is exact
@@ -491,13 +501,13 @@ fn apply_input_shape(window: &gtk::Window, sp: &sprites::Species, scale: f64) {
             match (run, solid) {
                 (None, true) => run = Some(x),
                 (Some(start), false) => {
-                    let rx = ox + start as f64 * scale;
-                    let ry = sprite_top + y as f64 * scale - slack;
+                    let rx = ox + start as f64 * es;
+                    let ry = sprite_top + y as f64 * es - slack;
                     let _ = region.union_rectangle(&gtk::cairo::RectangleInt::new(
                         rx.floor() as i32,
                         ry.floor() as i32,
-                        ((x - start) as f64 * scale).ceil() as i32,
-                        (scale + slack + scale * 0.5).ceil() as i32,
+                        ((x - start) as f64 * es).ceil() as i32,
+                        (es + slack + scale * 0.5).ceil() as i32,
                     ));
                     run = None;
                 }
@@ -768,7 +778,11 @@ fn draw_pet(area: &gtk::DrawingArea, ctx: &gtk::cairo::Context, st: &St,
     let frame = st.frame;
     let now = now_epoch();
 
-    let sprite_key = if pet.hatched { pet.species.as_str() } else { "egg" };
+    let sprite_key = if pet.hatched {
+        pet.sprite.as_deref().unwrap_or(pet.species.as_str())
+    } else {
+        "egg"
+    };
     let Some(sp) = assets
         .species
         .get(sprite_key)
@@ -800,8 +814,10 @@ fn draw_pet(area: &gtk::DrawingArea, ctx: &gtk::cairo::Context, st: &St,
         hop = (phase * std::f64::consts::PI).sin().abs() * 1.2 * s;
     }
 
+    // draw_sprite density-normalizes: any map renders 16 baseline cells wide
+    let es = s * 16.0 / sp.rows.first().map_or(16.0, |r| r.chars().count() as f64);
     let rows_n = sp.rows.len() as f64;
-    let sprite_w = sp.rows.first().map_or(16.0, |r| r.chars().count() as f64) * s;
+    let sprite_w = 16.0 * s;
     let ox = (w - sprite_w) / 2.0;
     let base_y = 3.5 * s; // above caption + dots (distance from BOTTOM)
 
@@ -815,7 +831,7 @@ fn draw_pet(area: &gtk::DrawingArea, ctx: &gtk::cairo::Context, st: &St,
     ctx.restore().ok();
 
     let blink = mode == "sleeping" || frame % 16 == 0;
-    let sprite_top = h - base_y - rows_n * s - bob - hop;
+    let sprite_top = h - base_y - rows_n * es - bob - hop;
     sprites::draw_sprite(
         ctx, sp, s, ox, sprite_top, blink,
         (st.facing < 0.0) != wiggle,
@@ -823,7 +839,7 @@ fn draw_pet(area: &gtk::DrawingArea, ctx: &gtk::cairo::Context, st: &St,
     );
 
     // effects above the sprite
-    let top_y = h - base_y - rows_n * s; // cairo y of the sprite's crown
+    let top_y = h - base_y - rows_n * es; // cairo y of the sprite's crown
     if now < snap.alert_until || snap.needs_attention {
         puts(ctx, "!", w - 3.0 * s, top_y + s, C_WARN, s + 6.0, true);
     } else if mode == "working" {

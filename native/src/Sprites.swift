@@ -11,6 +11,8 @@ struct Species {
     // optional hand-authored walk cycle: array of frames, each a rows array
     // (same size as `rows`). Absent → procedural leg-shuffle while walking.
     let walkFrames: [[String]]
+    // optional evolution rule: draw species `to` once the pet reaches stage `at`
+    let evolve: (at: String, to: String)?
 }
 
 private func makeSpecies(_ key: String, _ s: [String: Any]) -> Species {
@@ -18,9 +20,13 @@ private func makeSpecies(_ key: String, _ s: [String: Any]) -> Species {
     for (ch, hex) in (s["palette"] as? [String: String]) ?? [:] { pal[ch] = hexColor(hex) }
     let rows = s["rows"] as? [String] ?? []
     let walk = (s["walk"] as? [[String]] ?? []).filter { $0.count == rows.count }
+    var evolve: (at: String, to: String)?
+    if let ev = s["evolve"] as? [String: String], let at = ev["at"], let to = ev["to"] {
+        evolve = (at: at, to: to)
+    }
     return Species(key: key, name: s["name"] as? String ?? key,
                    emoji: s["emoji"] as? String ?? "",
-                   palette: pal, rows: rows, walkFrames: walk)
+                   palette: pal, rows: rows, walkFrames: walk, evolve: evolve)
 }
 
 func loadAssets() -> (order: [String], species: [String: Species]) {
@@ -57,6 +63,30 @@ func loadAssets() -> (order: [String], species: [String: Species]) {
 
 let assets = loadAssets()
 
+// Forms unlocked at this stage, base species first: `evolve` rules that have
+// triggered (agumon → [agumon, greymon] at adult). Chain-safe.
+func evolutionChain(_ species: String, stage: String) -> [String] {
+    let order = stages.map { $0.1 }
+    let si = order.firstIndex(of: stage) ?? 0
+    var chain = [species]
+    var key = species
+    while let ev = assets.species[key]?.evolve,
+          let ai = order.firstIndex(of: ev.at), si >= ai,
+          !chain.contains(ev.to) {
+        chain.append(ev.to)
+        key = ev.to
+    }
+    return chain
+}
+
+// Species key to actually draw: the latest unlocked evolution, unless the
+// user rolled back to an earlier unlocked form (state["form"]).
+func evolvedSprite(_ species: String, stage: String, form: String? = nil) -> String {
+    let chain = evolutionChain(species, stage: stage)
+    if let form, chain.contains(form) { return form }
+    return chain.last!
+}
+
 // MARK: - sprite rendering
 
 func drawSprite(_ key: String, scale: CGFloat, at origin: NSPoint, eyesClosed: Bool,
@@ -76,6 +106,9 @@ func drawSprite(_ key: String, scale: CGFloat, at origin: NSPoint, eyesClosed: B
     }
     let rowCount = rows.count
     let colCount = rows.first?.count ?? 16
+    // density normalization: `scale` is for 16px-wide maps; denser maps
+    // (23px agumon) draw smaller cells to keep the same on-screen footprint
+    let scale = scale * 16 / CGFloat(colCount)
     // snap every cell edge to whole pixels: bob/hop offsets are fractional,
     // and unsnapped rects antialias into hairline seams between rows —
     // visible as "stripes" on 1x external monitors. Adjacent cells share the
@@ -94,7 +127,7 @@ func drawSprite(_ key: String, scale: CGFloat, at origin: NSPoint, eyesClosed: B
         for (x, ch) in row.enumerated() {
             var c = String(ch)
             if c == "." { continue }
-            if eyesClosed && (c == "o" || c == "w") { c = "X" }
+            if eyesClosed && (c == "o" || c == "w" || c == "g") { c = "X" }
             guard let color = sp.palette[c] else { continue }
             color.setFill()
             // mirror x when the pet walks left; +1 offsets into xs, which
@@ -108,8 +141,9 @@ func drawSprite(_ key: String, scale: CGFloat, at origin: NSPoint, eyesClosed: B
 
 func spriteImage(_ key: String, scale: CGFloat) -> NSImage {
     guard let sp = assets.species[key] else { return NSImage() }
-    let w = CGFloat(sp.rows.first?.count ?? 16) * scale
-    let h = CGFloat(sp.rows.count) * scale
+    let es = scale * 16 / CGFloat(sp.rows.first?.count ?? 16)
+    let w = CGFloat(sp.rows.first?.count ?? 16) * es
+    let h = CGFloat(sp.rows.count) * es
     let img = NSImage(size: NSSize(width: w, height: h))
     img.lockFocus()
     drawSprite(key, scale: scale, at: .zero, eyesClosed: false)

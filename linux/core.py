@@ -13,7 +13,7 @@ speaks NDJSON with it:
 
   stdin (face → core), one JSON object per line:
     {"cmd":"ack", "path":...}          user clicked a session card
-    {"cmd":"set", "key":..., "value":...}   species / sound / walk / name
+    {"cmd":"set", "key":..., "value":...}   species / sound / walk / name / form
     {"cmd":"pick_species", "key":...}       hatch + choose species
 
 State (.state/state.json) and hook events (.state/events.jsonl) are shared
@@ -97,6 +97,32 @@ def jload(text):
 # Port of State.swift — shared .state/state.json (same file as pet.py / Swift).
 
 STAGES = [(0, "egg"), (30, "hatchling"), (200, "adult"), (1000, "legendary")]
+STAGE_ORDER = [name for _, name in STAGES]
+
+# Evolution rules — mirrors SPECIES[...]["evolve"] in pet.py (this file is
+# stdlib-only and standalone, same duplication as STAGES above).
+EVOLVE = {"agumon": ("adult", "greymon")}
+
+
+def evolution_chain(species, stage):
+    """Forms unlocked at this stage, base species first (triggered EVOLVE
+    rules: agumon → [agumon, greymon] at adult)."""
+    si = STAGE_ORDER.index(stage) if stage in STAGE_ORDER else 0
+    chain = [species]
+    while species in EVOLVE:
+        at, to = EVOLVE[species]
+        if at not in STAGE_ORDER or si < STAGE_ORDER.index(at) or to in chain:
+            break
+        chain.append(to)
+        species = to
+    return chain
+
+
+def sprite_for(species, stage, form=None):
+    """Species key to actually show: the latest unlocked evolution, unless the
+    user rolled back to an earlier unlocked form (state['form'])."""
+    chain = evolution_chain(species, stage)
+    return form if form in chain else chain[-1]
 
 
 def load_state():
@@ -940,6 +966,13 @@ class Core:
             "alert_until": self.alert_until, "excite_until": self.excite_until,
             "pet": {
                 "species": state.get("species") or "cat",
+                # what the face should draw: species + any triggered evolution,
+                # honoring an evolution rollback ("species" stays raw so the
+                # picker keeps its selection); "forms" feeds the settings
+                # dropdown — only meaningful when >1 form is unlocked
+                "sprite": sprite_for(state.get("species") or "cat", stage,
+                                     state.get("form")),
+                "forms": evolution_chain(state.get("species") or "cat", stage),
                 "name": state.get("name"),
                 "hatched": hatched, "stage": stage,
                 "xp": xp, "stage_lo": lo, "stage_hi": hi, "level": level,
@@ -965,10 +998,11 @@ class Core:
             st["species"] = cmd.get("key")
             st["hatched"] = True
             st.pop("name", None)
+            st.pop("form", None)  # evolution rollback belongs to the old species
             save_state(st)
         elif c == "set":
             key = cmd.get("key")
-            if key in ("sound", "walk", "name", "species",
+            if key in ("sound", "walk", "name", "species", "form",
                        "soundReady", "soundInput", "soundVolume"):
                 st = load_state()
                 st[key] = cmd.get("value")

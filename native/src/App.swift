@@ -60,7 +60,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             st["species"] = key
             st["hatched"] = true
             st.removeValue(forKey: "name")
+            st.removeValue(forKey: "form")  // rollback belongs to the old species
             saveState(st)
+            self?.view.state = st
+            self?.refreshPanel()
+        }
+        petPanel.onForm = { [weak self] key in
+            var st = loadState(); st["form"] = key; saveState(st)
             self?.view.state = st
             self?.refreshPanel()
         }

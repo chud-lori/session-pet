@@ -24,9 +24,10 @@ next launch and added to the species picker. No rebuild, no export step.
 - **Walk cycle (optional)** — add a `"walk"` key holding an array of frames,
   each the same shape as `"rows"`, and the pet uses them while strolling.
   Packs without it get an automatic two-frame leg shuffle.
-- **Conventions** — `.` is transparent; `o`/`w` are eye pixels (the pet
+- **Conventions** — `.` is transparent; `o`/`w`/`g` are eye pixels (the pet
   redraws them as `X` while blinking, so use `X` as the main body color to
-  make closed eyes look right). Built-ins are 16px wide.
+  make closed eyes look right). Built-ins are 16px wide (agumon is 32px);
+  wider maps auto-scale down to the 16px footprint.
 - Malformed files (bad JSON, missing or empty `rows`) are skipped, never
   fatal. Run with `SESSION_PET_LOG=1` to see what got skipped.
 - `sprites/example-slime.json` ships as a working template.
@@ -69,6 +70,12 @@ python3 pet.py status               # XP / stage outside the statusline
 
 The name shows as `???` until the egg hatches (30 XP, or instantly when you
 pick a sprite).
+
+Some species evolve: an agumon becomes **Greymon** when it reaches the adult
+stage (200 XP). The picker still shows (and keeps) your base species; the
+evolved form is earned, not picked. Once more than one form is unlocked, an
+**evolution** dropdown appears under settings to roll back to an earlier
+form (pick the latest form to evolve again).
 
 ## The statusline pet (legacy)
 

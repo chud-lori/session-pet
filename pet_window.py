@@ -44,8 +44,9 @@ SOUND_DEBOUNCE = 8  # seconds between sounds
 INPUT_TOOLS = ("AskUserQuestion", "ExitPlanMode")   # tool calls that block on the user
 
 # ---------------------------------------------------------------- sprites ----
-# 16px-wide chibi pixel maps. Chars: '.' empty · 'k' outline · 'X' base ·
-# 'd' shade · 'o' eye · 'w' eye sparkle (o/w close on blink/sleep) · rest per-palette.
+# Chibi pixel maps, 16px wide baseline (denser maps allowed — see eff_scale).
+# Chars: '.' empty · 'k' outline · 'X' base · 'd' shade · 'o' eye · 'w' eye
+# sparkle · 'g' iris (o/w/g close on blink/sleep) · rest per-palette.
 PIXELS = {
     "egg": {"palette": {"X": "#f6ecd8", "d": "#dcc9a4", "l": "#fffaf0", "k": "#3a3644"}, "rows": [
         "......kkkk......",
@@ -140,6 +141,88 @@ PIXELS = {
         "..kdXXk..kXXdkXk",
         "...kk......kk...",
     ]},
+    # pixel-for-pixel from the classic Agumon pixel art reference
+    # (137-1370247_agumon-pixel-art-digimon-minecraft, 23x26); denser than
+    # the 16px species so renderers shrink cells to match the footprint.
+    # w/g are the eye (blanked when sleeping); t is claw/teeth white.
+    "agumon": {"palette": {"X": "#ff911c", "k": "#000000", "r": "#ff0000",
+                           "w": "#ffffff", "t": "#ffffff", "y": "#eff30c",
+                           "g": "#8bc34a"}, "rows": [
+        ".......kkkkk.kk........",
+        "......kXXXyykXkkk......",
+        ".....kXXXkkXyXXXXk.....",
+        "....kXXXkgwkXyyyyykk...",
+        "....kXXXkgkkXXXyyyyXkk.",
+        "...krXXXkwkkXXXXXXXyyXk",
+        "...krXXXykkXXXXXXXkXXkk",
+        "...krXXXXyyyXXXXXXrXXrk",
+        "...krXXXXXkXXXXXXXXXXXk",
+        "....krXXXXrkXkkXXXXXXk.",
+        "....krXXXXXXXXkXkkkXkk.",
+        ".....kXXXXXXXXXXXXXXk..",
+        ".....krXXXXXXXXXkkkk...",
+        ".....kXrrXXXXrrk.......",
+        "....kXXrXXXXXrk........",
+        "....kXXrrrXXXkrk.......",
+        "...krXrrrXXXXkXkkk.....",
+        "...kXXXkkrXXXXkXXXkk...",
+        ".kkrXXyyykkXXXkrXtttk..",
+        "kXkrrXXttttkXrkrtktktk.",
+        "krrkrt.ktktkXXXkkttktk.",
+        ".krrkktktkkrrXXk.kkkk..",
+        "..kkkrkkkkrrrXkk.......",
+        "...krrrXXXkkrXXXkk.....",
+        "...krrttXtXtkrrXttk....",
+        "....kkkkkkkkkkkkkk.....",
+    ]},
+    # agumon's evolved form — adapted from a classic Greymon pixel art
+    # reference (pixelartmaker 2febaeaaff7ff79, 52x41): grid-sampled, then the
+    # tail trimmed by 11 columns so the map stays taller than wide (32x37
+    # renders a touch taller than agumon). NOTE: body orange is "a", not "X" —
+    # "X" is the helmet brown so the sleeping blank (o/w/g → X) melts the red
+    # eye "g" into the skull helmet instead of turning it orange.
+    "greymon": {"palette": {"X": "#63341d", "S": "#9c522e", "a": "#f2951b",
+                            "d": "#c46614", "y": "#ffb812", "b": "#0f60b3",
+                            "B": "#1484f5", "t": "#ffffff", "g": "#cf1f1f",
+                            "k": "#000000"}, "rows": [
+        "....k......................k....",
+        "....kk.....................k....",
+        "....kk.....................k....",
+        "....kSkk......kkkkk.XXX.kkkk....",
+        "....kXSSkkkkkkkSSSXXXXSXkkkk...k",
+        ".....kXXSSXXXXSXXSSXkXXSkkk...kk",
+        ".....kkkXXSSXXXXXXSSXkkXSk....kk",
+        "........kkXXXkXkkXXSSXkkSk...kSk",
+        ".......kXXkkkkkggkXXSXkkkk..kXSk",
+        "........XXXXkXkggtXXSkXSSkkkXSk.",
+        ".......kbkXXkXXgggkkkkXXXSSXXSk.",
+        ".......kbbkkXSXXkkkXXXXXXXXSXk..",
+        ".......kddkXSSSSXXXXXXXXXXXXSSk.",
+        ".......kbdkSSXXXXXXXXXXXXXXXSSk.",
+        "........kbkkkkkkktkkXXXXXXXXSSk.",
+        "........kdddaaaaakaakkXXXXXXSk..",
+        ".......kbdkdayyByyaaktkktkktkk..",
+        ".......kbbddaaabyyByakaakaak....",
+        "......kakbbdkkddbaaByyaaakk.....",
+        ".....kaaddkkdddddbakkkkkk.......",
+        "....kkaakdbbkkkdkkk.............",
+        "kkkkddakkddbddkkBkk....kkk......",
+        "kbkdakkyykdddaayBkdkkkkadak.....",
+        "kbkdaaaatkkbaakaakkddddkaatk....",
+        "kbkkaakktkakkdykkbkddkdtkktk....",
+        "kdkkktkbkktkayyaakbkkkktktkk....",
+        "kdkBBkbkbbkyayyakBk....kktk.....",
+        "kkBayyybkbbaayaakyBk.....kk.....",
+        "kkaaBBbakdbBaadddByyk...........",
+        "kkaByyybkddddddkaaaak...........",
+        ".kdaayaakddddkkdaaakk...........",
+        "kddaaaakkkkkkdddakkk............",
+        "kdaaakkk....kkddkaaykk..........",
+        "kaayyadk...kdddddaayyykkk.......",
+        "kayyyyyak..kddddddattdttk.......",
+        "ktktttkttk..kkkkkkkkkkkk........",
+        "kkkkkkkkkk......................",
+    ]},
     "fox": {"palette": {"X": "#f28c4b", "d": "#d97636", "o": "#26262e", "w": "#ffffff",
                         "W": "#fdf3e3", "p": "#e8828f", "k": "#4a3326"}, "rows": [
         "..kk........kk..",
@@ -192,7 +275,9 @@ PIXELS = {
     ]},
 }
 
-SPRITE_COLS = 16          # all maps are 16px wide
+SPRITE_COLS = 16          # baseline map width; denser maps (23px agumon)
+                          # draw at a proportionally smaller scale so every
+                          # species keeps the same on-screen footprint
 CANVAS_COLS = 18          # canvas width in sprite pixels (room for effects)
 CANVAS_ROWS = 22          # sprite (15) + bob/effects headroom + dots + caption
 
@@ -210,14 +295,26 @@ CLAUDE_GLOB = os.path.expanduser("~/.claude/projects/*/*.jsonl")
 CODEX_GLOB = os.path.expanduser("~/.codex/sessions/*/*/*/rollout-*.jsonl")
 
 
+def eff_scale(key, scale):
+    """Per-sprite cell size: 16px maps draw at `scale`, denser maps smaller."""
+    cols = len(PIXELS.get(key, PIXELS["cat"])["rows"][0])
+    # round, don't floor: 64 // 23 = 2 leaves agumon visibly undersized,
+    # round(64 / 23) = 3 lands much closer to the 16px footprint
+    return max(1, round(scale * SPRITE_COLS / cols))
+
+
 def paint_pixels(canvas, key, scale, ox, oy, eyes_closed=False):
-    """Draw a pixel map onto any canvas (pet window or modal picker)."""
+    """Draw a pixel map onto any canvas (pet window or modal picker).
+
+    `scale` is the 16px-baseline scale; density-normalized via eff_scale.
+    """
     spec = PIXELS.get(key, PIXELS["cat"])
+    scale = eff_scale(key, scale)
     for y, row in enumerate(spec["rows"]):
         for x, ch in enumerate(row):
             if ch == ".":
                 continue
-            if eyes_closed and ch in ("o", "w"):
+            if eyes_closed and ch in ("o", "w", "g"):
                 ch = "X"
             color = spec["palette"].get(ch, "#ffffff")
             canvas.create_rectangle(ox + x * scale, oy + y * scale,
@@ -537,6 +634,14 @@ class PetWindow:
         state["species"] = key
         state["hatched"] = True  # an explicit pick hatches the egg immediately
         state.pop("name", None)  # revert to the new species' default name
+        state.pop("form", None)  # evolution rollback belongs to the old species
+        pet.save_state(state)
+        self.state = state
+        self.update_modal()
+
+    def choose_form(self, key):
+        state = pet.load_state()
+        state["form"] = key
         pet.save_state(state)
         self.state = state
         self.update_modal()
@@ -602,22 +707,37 @@ class PetWindow:
         grid.pack(anchor="w", pady=(2, 0))
         self.pick = {}
         mini = 2  # picker sprite scale
-        for i, key in enumerate(pet.SPECIES):
+        pickable = [k for k in pet.SPECIES if not pet.SPECIES[k].get("hidden")]
+        for i, key in enumerate(pickable):
             rows = PIXELS[key]["rows"]
+            es = eff_scale(key, mini)
             c = tk.Canvas(grid, width=SPRITE_COLS * mini + 6,
                           height=15 * mini + 6, bg=CARD, highlightthickness=2)
-            oy = (15 - len(rows)) * mini // 2 + 3
-            paint_pixels(c, key, mini, 3, oy)
+            ox = (SPRITE_COLS * mini - len(rows[0]) * es) // 2 + 3
+            oy = (15 * mini - len(rows) * es) // 2 + 3
+            paint_pixels(c, key, mini, ox, oy)
             c.grid(row=i // 4, column=i % 4, padx=3, pady=3)
             c.bind("<Button-1>", lambda _e, k=key: self.choose_species(k))
             self.pick[key] = c
 
+        # evolution rollback — packed by update_modal only once the pet has
+        # unlocked more than one form (e.g. agumon → greymon at adult)
+        self.evo_row = tk.Frame(self.picker_frame, bg=CARD)
+        tk.Label(self.evo_row, text="evolution", bg=CARD, fg=MUTED,
+                 font=("Menlo", 9)).pack(side="left")
+        self.evo_var = tk.StringVar()
+        self.evo_menu = tk.OptionMenu(self.evo_row, self.evo_var, "")
+        self.evo_menu.config(font=("Menlo", 9), highlightthickness=0)
+        self.evo_menu.pack(side="left", padx=(6, 0))
+        self._evo_shown = None  # (chain, shown) cache — rebuild only on change
+
         self.sound_var = tk.BooleanVar(value=self.state.get("sound", True))
-        tk.Checkbutton(self.picker_frame, text="sound when an agent needs me",
-                       variable=self.sound_var, command=self.toggle_sound,
-                       bg=CARD, fg=FG, font=("Menlo", 9), selectcolor=CARD,
-                       activebackground=CARD,
-                       activeforeground=FG).pack(pady=(6, 0), anchor="w")
+        self.sound_check = tk.Checkbutton(
+            self.picker_frame, text="sound when an agent needs me",
+            variable=self.sound_var, command=self.toggle_sound,
+            bg=CARD, fg=FG, font=("Menlo", 9), selectcolor=CARD,
+            activebackground=CARD, activeforeground=FG)
+        self.sound_check.pack(pady=(6, 0), anchor="w")
 
         row = tk.Frame(m, bg=CARD)
         row.pack(pady=(8, 12), padx=14, anchor="w")
@@ -646,8 +766,29 @@ class PetWindow:
         xp = pet.total_xp(state)
         stage, lo, hi = pet.stage_for(xp)
         species_key = state.get("species", pet.DEFAULT_SPECIES)
-        sp = pet.SPECIES.get(species_key, pet.SPECIES[pet.DEFAULT_SPECIES])
         hatched = state.get("hatched") or stage != "egg"
+        shown = (pet.sprite_for(species_key, stage, state.get("form"))
+                 if hatched else species_key)
+        sp = pet.SPECIES.get(shown, pet.SPECIES[pet.DEFAULT_SPECIES])
+
+        # evolution dropdown: visible only once >1 form is unlocked
+        chain = pet.evolution_chain(species_key, stage) if hatched else []
+        if len(chain) > 1:
+            if self._evo_shown != (chain, shown):
+                self._evo_shown = (chain, shown)
+                menu = self.evo_menu["menu"]
+                menu.delete(0, "end")
+                for k in chain:
+                    nm = pet.SPECIES.get(k, {}).get("name", k)
+                    menu.add_command(label=nm,
+                                     command=lambda k=k: self.choose_form(k))
+                self.evo_var.set(pet.SPECIES.get(shown, {}).get("name", shown))
+            if not self.evo_row.winfo_ismapped():
+                self.evo_row.pack(anchor="w", pady=(6, 0),
+                                  before=self.sound_check)
+        else:
+            self.evo_row.pack_forget()
+            self._evo_shown = None
         name = (state.get("name") or sp["name"]) if hatched else "???"
         crown = "👑 " if stage == "legendary" else ""
         level = min(99, 1 + int((xp / 10.0) ** 0.5))
@@ -764,14 +905,16 @@ class PetWindow:
         stage, _, _ = pet.stage_for(xp)
         species_key = state.get("species", pet.DEFAULT_SPECIES)
         hatched = state.get("hatched") or stage != "egg"
-        sprite_key = species_key if hatched else "egg"
+        sprite_key = (pet.sprite_for(species_key, stage, state.get("form"))
+                      if hatched else "egg")
 
         bob_period = {"working": 2, "waiting": 6, "sleeping": 10}[self.mode]
         bob = ((self.frame // bob_period) % 2) * (self.scale // 2)
         rows = PIXELS.get(sprite_key, PIXELS["cat"])["rows"]
         s = self.scale
-        ox = (CANVAS_COLS * s - len(rows[0]) * s) // 2
-        oy = (CANVAS_ROWS - 4 - len(rows)) * s + bob  # feet above dots + caption
+        es = eff_scale(sprite_key, s)
+        ox = (CANVAS_COLS * s - len(rows[0]) * es) // 2
+        oy = (CANVAS_ROWS - 4) * s - len(rows) * es + bob  # feet above dots + caption
 
         self.canvas.delete("all")
         # ground shadow: grounds the floating sprite AND widens the clickable
@@ -802,7 +945,7 @@ class PetWindow:
                                         x0 + i * gap + r, y + r,
                                         fill=color, outline="")
 
-        sp = pet.SPECIES.get(species_key, pet.SPECIES[pet.DEFAULT_SPECIES])
+        sp = pet.SPECIES.get(sprite_key, pet.SPECIES[pet.DEFAULT_SPECIES])
         name = (state.get("name") or sp["name"]) if hatched else "???"
         level = min(99, 1 + int((xp / 10.0) ** 0.5))
         crown = "👑" if stage == "legendary" else ""

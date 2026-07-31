@@ -28,6 +28,15 @@ pub struct Snapshot {
 #[derive(Deserialize, Clone, Default)]
 pub struct Pet {
     pub species: String,
+    // what to draw: species + any triggered evolution, honoring an evolution
+    // rollback (species stays raw so the picker keeps its selection); older
+    // cores omit it
+    #[serde(default)]
+    pub sprite: Option<String>,
+    // forms unlocked at this stage, base first — feeds the settings dropdown
+    // when there is more than one
+    #[serde(default)]
+    pub forms: Vec<String>,
     pub name: Option<String>,
     pub hatched: bool,
     pub stage: String,

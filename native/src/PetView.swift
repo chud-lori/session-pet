@@ -80,7 +80,9 @@ final class PetView: NSView {
         let hatched = (state["hatched"] as? Bool ?? false) || stage != "egg"
         if hatched && stage == "egg" { stage = "hatchling" }
         let speciesKey = state["species"] as? String ?? "cat"
-        let spriteKey = hatched ? speciesKey : "egg"
+        let spriteKey = hatched
+            ? evolvedSprite(speciesKey, stage: stage, form: state["form"] as? String)
+            : "egg"
         let sp = assets.species[spriteKey] ?? assets.species["cat"]!
 
         // QUIET BASELINE, LOUD ALERT: constant bobbing trained the eye to
@@ -107,7 +109,9 @@ final class PetView: NSView {
             let phase = CGFloat(frameCount % 48) / 6
             hop = abs(sin(phase * .pi)) * 1.2 * s
         }
-        let spriteW = CGFloat(sp.rows.first?.count ?? 16) * s
+        // drawSprite density-normalizes: any map renders 16 baseline cells wide
+        let es = s * 16 / CGFloat(sp.rows.first?.count ?? 16)
+        let spriteW = 16 * s
         let ox = (bounds.width - spriteW) / 2
         let baseY = 3.5 * s // above caption + dots
 
@@ -127,7 +131,7 @@ final class PetView: NSView {
             (text as NSString).draw(at: NSPoint(x: x, y: y),
                                     withAttributes: [.font: f ?? effFont, .foregroundColor: color])
         }
-        let topY = baseY + CGFloat(sp.rows.count) * s
+        let topY = baseY + CGFloat(sp.rows.count) * es
         if Date().timeIntervalSince1970 < alertUntil || needsAttention {
             // persistent while ANY unacknowledged session waits on you —
             // not just for 5s after the ding

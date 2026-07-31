@@ -58,7 +58,9 @@ def make_walk_frames(rows):
     return [rows[:-1] + [apart], rows[:-1] + [together]]
 
 
-out = {"order": list(pet.SPECIES), "species": {}}
+# hidden species (evolved forms) are real sprites but never picker choices
+out = {"order": [k for k, sp in pet.SPECIES.items() if not sp.get("hidden")],
+       "species": {}}
 for key, px in pet_window.PIXELS.items():
     meta = pet.SPECIES.get(key, {})
     entry = {
@@ -67,6 +69,8 @@ for key, px in pet_window.PIXELS.items():
         "palette": px["palette"],
         "rows": px["rows"],
     }
+    if "evolve" in meta:  # {"at": stage, "to": species-key}
+        entry["evolve"] = meta["evolve"]
     if key != "egg":  # the egg wobbles procedurally; it has no feet
         entry["walk"] = make_walk_frames(px["rows"])
     out["species"][key] = entry
