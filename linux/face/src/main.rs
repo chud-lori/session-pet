@@ -885,11 +885,16 @@ fn draw_pet(area: &gtk::DrawingArea, ctx: &gtk::cairo::Context, st: &St,
                     let a = if frame % 2 == 0 { 1.0 } else { 0.35 };
                     ctx.set_source_rgba(c.0, c.1, c.2, a);
                     ctx.set_line_width((s * 0.25).max(1.0));
+                    // show_text (the ! / ? / sparkles above) leaves a current
+                    // point; arc() would connect it with a straight segment
+                    // and stroke() paints that as a diagonal line across the pet
+                    ctx.new_path();
                     ctx.arc(x, cy, r, 0.0, std::f64::consts::TAU);
                     let _ = ctx.stroke();
                 }
                 _ => {
                     ctx.set_source_rgb(C_ACCENT.0, C_ACCENT.1, C_ACCENT.2);
+                    ctx.new_path();
                     ctx.arc(x, cy, r, 0.0, std::f64::consts::TAU);
                     let _ = ctx.fill();
                 }
