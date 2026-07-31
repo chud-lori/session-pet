@@ -7,6 +7,7 @@
   "dino",
   "agumon",
   "pudge",
+  "mario",
   "fox",
   "alien",
   "turtle"
@@ -657,6 +658,75 @@
      "kkkkkkkkrttttdkkkkkkk.......",
      "kddkkk..kkkkkk.kkkddk.......",
      ".XXXXk.........kdXXXk......."
+    ]
+   ]
+  },
+  "mario": {
+   "name": "Mario",
+   "emoji": "\ud83c\udf44",
+   "palette": {
+    "X": "#fac090",
+    "r": "#fa0000",
+    "b": "#0170c1",
+    "h": "#974806",
+    "y": "#ffff00",
+    "o": "#000000",
+    "k": "#000000"
+   },
+   "rows": [
+    ".....rrrrrr......",
+    "....rrrrrrrrrr...",
+    "....hhhXXXoX.....",
+    "...hXhXXXXoXXX...",
+    "...hXhhXXXXkXXX..",
+    "...hhXXXXXkkkk...",
+    ".....XXXXXXXX....",
+    "....rrbrrrr......",
+    "...rrrbrrbrrr....",
+    "..rrrrbbbbrrrr...",
+    "..XXrbybbybrXX...",
+    "..XXXbbbbbbXXX...",
+    "..XXbbbbbbbbXX...",
+    "....bbb..bbb.....",
+    "...hhh....hhh....",
+    "..hhhh....hhhh..."
+   ],
+   "walk": [
+    [
+     ".....rrrrrr......",
+     "....rrrrrrrrrr...",
+     "....hhhXXXoX.....",
+     "...hXhXXXXoXXX...",
+     "...hXhhXXXXkXXX..",
+     "...hhXXXXXkkkk...",
+     ".....XXXXXXXX....",
+     "....rrbrrrr......",
+     "...rrrbrrbrrr....",
+     "..rrrrbbbbrrrr...",
+     "..XXrbybbybrXX...",
+     "..XXXbbbbbbXXX...",
+     "..XXbbbbbbbbXX...",
+     "....bbb..bbb.....",
+     "...hhh....hhh....",
+     ".hhhh......hhhh.."
+    ],
+    [
+     ".....rrrrrr......",
+     "....rrrrrrrrrr...",
+     "....hhhXXXoX.....",
+     "...hXhXXXXoXXX...",
+     "...hXhhXXXXkXXX..",
+     "...hhXXXXXkkkk...",
+     ".....XXXXXXXX....",
+     "....rrbrrrr......",
+     "...rrrbrrbrrr....",
+     "..rrrrbbbbrrrr...",
+     "..XXrbybbybrXX...",
+     "..XXXbbbbbbXXX...",
+     "..XXbbbbbbbbXX...",
+     "....bbb..bbb.....",
+     "...hhh....hhh....",
+     "...hhhh..hhhh...."
     ]
    ]
   },

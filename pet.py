@@ -43,6 +43,7 @@ SPECIES = {
     "greymon": {"name": "Greymon", "emoji": "🦖", "working": ["🔥", "💥"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🔥"],
                 "hidden": True},
     "pudge":   {"name": "Pudge",  "emoji": "🔪", "working": ["🔪", "🩸"], "waiting": ["❓", "🪝"], "sleeping": ["💤", "🍖"]},
+    "mario":   {"name": "Mario",  "emoji": "🍄", "working": ["🍄", "⭐"], "waiting": ["❓", "🪙"], "sleeping": ["💤", "🌟"]},
     "fox":     {"name": "Kit",    "emoji": "🦊", "working": ["✨", "🍃"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🌙"]},
     "alien":   {"name": "Zorp",   "emoji": "👾", "working": ["📡", "⚡"], "waiting": ["❓", "🛸"], "sleeping": ["💤", "🌌"]},
     "turtle":  {"name": "Sage",   "emoji": "🐢", "working": ["🧘", "✨"], "waiting": ["❓", "💭"], "sleeping": ["💤", "🍵"]},

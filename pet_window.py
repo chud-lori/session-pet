@@ -254,6 +254,30 @@ PIXELS = {
         "kddkkk..kkkkkk.kkkddk.......",
         "XXXXk...........kdXXXk......",
     ]},
+    # grid-sampled from a classic 13x16 Mario pixel-art reference, then padded
+    # 2 columns each side: normalization is width-based, and at 13 cols he
+    # rendered 19.7 baseline rows — taller than the canvas allows, so his hat
+    # clipped on every alert hop. 17 cols puts him at cat height with headroom.
+    # 'o' is the eye (blanks on blink); the moustache stays 'k'.
+    "mario": {"palette": {"X": "#fac090", "r": "#fa0000", "b": "#0170c1", "h": "#974806",
+                          "y": "#ffff00", "o": "#000000", "k": "#000000"}, "rows": [
+        ".....rrrrrr......",
+        "....rrrrrrrrrr...",
+        "....hhhXXXoX.....",
+        "...hXhXXXXoXXX...",
+        "...hXhhXXXXkXXX..",
+        "...hhXXXXXkkkk...",
+        ".....XXXXXXXX....",
+        "....rrbrrrr......",
+        "...rrrbrrbrrr....",
+        "..rrrrbbbbrrrr...",
+        "..XXrbybbybrXX...",
+        "..XXXbbbbbbXXX...",
+        "..XXbbbbbbbbXX...",
+        "....bbb..bbb.....",
+        "...hhh....hhh....",
+        "..hhhh....hhhh...",
+    ]},
     "fox": {"palette": {"X": "#f28c4b", "d": "#d97636", "o": "#26262e", "w": "#ffffff",
                         "W": "#fdf3e3", "p": "#e8828f", "k": "#4a3326"}, "rows": [
         "..kk........kk..",

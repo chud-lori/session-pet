@@ -4,7 +4,7 @@ A pixel-art desktop companion for your coding agents: one tiny always-on-top
 native pet that watches **every Claude Code and Codex session** on your
 machine. It bounces while agents work, dings the moment one needs your input,
 flags sessions that stall mid-turn, shows live per-session cards, jumps you
-back to the terminal running any session, and levels up across 10 species as
+back to the terminal running any session, and levels up across 11 species as
 you ship.
 
 Native on both platforms — Swift/AppKit on macOS, Rust/GTK on Linux — sharing
