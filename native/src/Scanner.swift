@@ -449,7 +449,19 @@ func scanSessions() -> [SessionInfo] {
                            let d = a[.modificationDate] as? Date {
                             let sage = now - d.timeIntervalSince1970
                             newestSub = min(newestSub, sage)
-                            if sage < workingWithin { active += 1 }
+                            // alive = wrote more recently than the PARENT, not
+                            // "within the last 15s": while agents run, the
+                            // parent sits on the end_turn it wrote before
+                            // launching them, and agents routinely go a minute
+                            // or more between writes (thinking, long tools).
+                            // A fixed window made every such pause surface that
+                            // stale end_turn as "finished" — a false ding on
+                            // every gap. This self-clears: when the workflow
+                            // really ends the main loop writes LAST, so the
+                            // parent is newest and `ready` fires once, for real.
+                            // busyGrace bounds it so abandoned sessions with
+                            // leftover subagent files don't stay "working".
+                            if sage < age, sage < busyGrace { active += 1 }
                         }
                     }
                 }

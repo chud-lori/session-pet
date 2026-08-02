@@ -21,13 +21,24 @@ mkdir -p "$CLAUDE_DIR" "$CODEX_DIR"
 cp "$ROOT"/test/fixtures/end-turn.jsonl \
    "$ROOT"/test/fixtures/ask-user.jsonl \
    "$ROOT"/test/fixtures/bigline.jsonl \
-   "$ROOT"/test/fixtures/meta-user.jsonl "$CLAUDE_DIR/"
+   "$ROOT"/test/fixtures/meta-user.jsonl \
+   "$ROOT"/test/fixtures/subagent-parent.jsonl "$CLAUDE_DIR/"
 cp "$ROOT/test/fixtures/rollout-x.jsonl" "$CODEX_DIR/"
 # backdate mtimes 45s: past the 3s needs-input debounce AND the 40s
 # readyHold window (Claude end_turns younger than readyConfirm+30 are held
 # as "working" until they survive 10s of observation), well inside the
 # 300s "ready" window
 touch -t "$(date -v-45S +%Y%m%d%H%M.%S)" "$CLAUDE_DIR"/*.jsonl "$CODEX_DIR"/*.jsonl
+
+# a running multi-agent session: the parent sits on the end_turn it wrote
+# before launching agents, and a subagent last wrote 20s ago — longer than any
+# fixed "recently active" window, but still AFTER the parent. This must read as
+# working, not "finished" (that false ready is a spurious done-ding).
+SUBDIR="$CLAUDE_DIR/subagent-parent/subagents"
+mkdir -p "$SUBDIR"
+echo '{"type":"assistant","message":{"role":"assistant","stop_reason":"tool_use","content":[]}}' \
+  > "$SUBDIR/agent-x.jsonl"
+touch -t "$(date -v-20S +%Y%m%d%H%M.%S)" "$SUBDIR/agent-x.jsonl"
 
 echo "▸ scanning"
 OUT="$(SESSION_PET_HOME="$PETHOME" "$ROOT/native/SessionPet" --scan-once)"
@@ -51,6 +62,7 @@ expect ask-user.jsonl  input   # AskUserQuestion tool_use → needs your answer
 expect bigline.jsonl   ready   # >70KB line after end_turn must not hide it
 expect meta-user.jsonl ready   # isMeta user event after end_turn ≠ new turn
 expect rollout-x.jsonl ready   # Codex task_complete → just finished
+expect subagent-parent.jsonl working  # subagent newer than parent → still running
 
 if [[ $fail -ne 0 ]]; then echo "TESTS FAILED"; exit 1; fi
 echo "all phases as expected"

@@ -745,7 +745,18 @@ def scan_sessions():
                             except OSError:
                                 continue
                             newest_sub = min(newest_sub, sage)
-                            if sage < WORKING_WITHIN:
+                            # alive = wrote more recently than the PARENT, not
+                            # "within the last 15s": while agents run, the
+                            # parent sits on the end_turn it wrote before
+                            # launching them, and agents routinely go a minute
+                            # or more between writes. A fixed window made every
+                            # such pause surface that stale end_turn as
+                            # "finished" — a false ding on every gap. Self-
+                            # clearing: when the workflow really ends the main
+                            # loop writes LAST, so the parent is newest and
+                            # "ready" fires once, for real. BUSY_GRACE bounds it
+                            # so abandoned sessions don't stay "working".
+                            if sage < age and sage < BUSY_GRACE:
                                 active += 1
                 if active > 0 and phase != "input":
                     phase = "working"
