@@ -351,7 +351,8 @@
 <span class="c"># macos build deps: Xcode Command Line Tools (swiftc) — macOS 13+</span>
 <span class="p">$</span> git clone https://github.com/chud-lori/session-pet.git
 <span class="p">$</span> cd session-pet
-<span class="p">$</span> ./install.sh --login-item   <span class="c"># build + run + start at every login</span></pre></div>
+<span class="p">$</span> ./install.sh --login-item   <span class="c"># build + run + start at every login</span>
+                              <span class="c"># (LaunchAgent on macOS, XDG autostart on Linux)</span></pre></div>
       <p style="color:var(--muted); font-size:.92rem">
         Or skip the clone and toolchain — downloads a prebuilt from the
         <a href="https://github.com/chud-lori/session-pet/releases">latest
@@ -361,10 +362,10 @@
       </p>
       <div class="codeblock"><pre><span class="p">$</span> curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh</pre></div>
       <p style="color:var(--muted); font-size:.92rem">
-        Add <code>-s -- --login-item</code> to start at every login — a
-        LaunchAgent on macOS, an XDG entry at
-        <code>~/.config/autostart/session-pet.desktop</code> on Linux, where
-        <code>--autostart</code> is the native spelling for the same thing.
+        Add <code>-s -- --login-item</code> to start at every login. On Linux
+        the entry lands at
+        <code>~/.config/autostart/session-pet.desktop</code>, and
+        <code>--autostart</code> is the same flag under its native name.
         <code>./install.sh --uninstall</code> removes it on either OS, leaving
         your pet's state untouched. Wayland/compositor notes live in the
         <a href="https://github.com/chud-lori/session-pet/blob/main/INSTALL.md">INSTALL.md</a>.

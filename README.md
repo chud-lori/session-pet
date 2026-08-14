@@ -20,6 +20,7 @@ one pet, one XP pool, one `.state/state.json`. No Electron, no dependencies.
 git clone https://github.com/chud-lori/session-pet.git
 cd session-pet
 ./install.sh --login-item   # build + run + start at every login
+                            # (LaunchAgent on macOS, XDG autostart on Linux)
 ```
 
 No clone and no toolchain, once a release is published:
@@ -28,10 +29,10 @@ No clone and no toolchain, once a release is published:
 curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh
 ```
 
-`--login-item` starts the pet at every login on both platforms — a LaunchAgent
-on macOS, an XDG entry at `~/.config/autostart/session-pet.desktop` on Linux
-(`--autostart` is the native Linux spelling). `./install.sh --uninstall`
-removes it on either OS. Full options, Wayland notes and troubleshooting:
+Add `-s -- --login-item` to the one-liner to start at login too. On Linux the
+entry lands at `~/.config/autostart/session-pet.desktop`, and `--autostart` is
+the same flag under its native name. `./install.sh --uninstall` removes it on
+either OS. Full options, Wayland notes and troubleshooting:
 **[INSTALL.md](INSTALL.md)**.
 
 ## Using the pet
