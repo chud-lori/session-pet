@@ -361,7 +361,10 @@
       </p>
       <div class="codeblock"><pre><span class="p">$</span> curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh</pre></div>
       <p style="color:var(--muted); font-size:.92rem">
-        Add <code>-s -- --login-item</code> to start at every login.
+        Add <code>-s -- --login-item</code> to start at every login — a
+        LaunchAgent on macOS, an XDG entry at
+        <code>~/.config/autostart/session-pet.desktop</code> on Linux, where
+        <code>--autostart</code> is the native spelling for the same thing.
         <code>./install.sh --uninstall</code> removes it on either OS, leaving
         your pet's state untouched. Wayland/compositor notes live in the
         <a href="https://github.com/chud-lori/session-pet/blob/main/INSTALL.md">INSTALL.md</a>.

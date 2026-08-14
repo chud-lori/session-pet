@@ -28,8 +28,11 @@ No clone and no toolchain, once a release is published:
 curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh
 ```
 
-`./install.sh --uninstall` removes it on either OS. Full options, autostart,
-Wayland notes and troubleshooting: **[INSTALL.md](INSTALL.md)**.
+`--login-item` starts the pet at every login on both platforms — a LaunchAgent
+on macOS, an XDG entry at `~/.config/autostart/session-pet.desktop` on Linux
+(`--autostart` is the native Linux spelling). `./install.sh --uninstall`
+removes it on either OS. Full options, Wayland notes and troubleshooting:
+**[INSTALL.md](INSTALL.md)**.
 
 ## Using the pet
 
