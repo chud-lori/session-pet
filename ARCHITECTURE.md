@@ -12,6 +12,12 @@ native/assets.json   sprite + species source of truth, read by BOTH faces
 .state/state.json    XP, species, name, toggles — shared across platforms
 ```
 
+The pet's identity is its state root. macOS derives it from the executable
+path; Linux resolves `SESSION_PET_ROOT`, then a repo root above the binary,
+then the installer's pin in `~/.config/session-pet/root`, then
+`~/.local/share/session-pet`. The current directory is deliberately not
+consulted — a pet that changed level with your shell's cwd was a real bug.
+
 Session transcripts are untrusted text, and on Linux only the Python core
 parses them; the Rust face reads nothing but the core's own JSON.
 

@@ -38,6 +38,11 @@ the GTK3 runtime every GNOME/KDE/XFCE desktop already ships. The Linux
 binary embeds the Python core and sprite assets, so it runs standalone and
 keeps its state in `~/.local/share/session-pet`.
 
+Installing from a clone instead keeps state in the clone, and pins that path
+in `~/.config/session-pet/root` so the autostart entry, a desktop launcher
+and a terminal run all open the *same* pet. Re-run the installer after moving
+a clone; `SESSION_PET_ROOT=/path` overrides the pin for one run.
+
 ### Linux-only flags
 
 | Flag | Effect |
@@ -111,6 +116,7 @@ For a clean slate:
 ```bash
 ./install.sh --uninstall
 rm -rf ~/.local/share/session-pet   # Linux standalone state (wipes XP)
+rm -f ~/.config/session-pet/root    # Linux: forget the pinned state root
 ./install.sh
 ```
 

@@ -3,7 +3,8 @@
 //! binary only draws, plays sounds, and forwards clicks.
 //!
 //! Runs from a repo clone (finds linux/core.py + native/assets.json by
-//! walking up from the executable) or standalone (no clone): core.py and
+//! walking up from the executable, or from the root the installer pinned in
+//! ~/.config/session-pet/root) or standalone (no clone): core.py and
 //! assets.json are embedded at build time and extracted under
 //! ~/.local/share/session-pet.
 
@@ -47,48 +48,69 @@ fn is_repo_root(p: &Path) -> bool {
     p.join("linux/core.py").is_file() && p.join("native/assets.json").is_file()
 }
 
-fn find_layout() -> Layout {
-    let mut candidates: Vec<PathBuf> = vec![];
-    if let Ok(root) = std::env::var("SESSION_PET_ROOT") {
-        candidates.push(PathBuf::from(root));
-    }
-    if let Ok(exe) = std::env::current_exe() {
-        candidates.extend(exe.ancestors().skip(1).map(Path::to_path_buf));
-    }
-    if let Ok(cwd) = std::env::current_dir() {
-        candidates.extend(cwd.ancestors().map(Path::to_path_buf));
-    }
-    for c in candidates {
-        if is_repo_root(&c) {
-            return Layout {
-                core_py: c.join("linux/core.py"),
-                assets_json: Some(c.join("native/assets.json")),
-                sprites_dir: c.join("sprites"),
-                root: c,
-            };
-        }
-    }
-    // standalone: extract the embedded core under XDG data
-    let data = std::env::var_os("XDG_DATA_HOME")
+fn home() -> PathBuf {
+    PathBuf::from(std::env::var_os("HOME").expect("HOME unset"))
+}
+
+/// Root pinned by the installer, so every launcher — terminal, autostart
+/// entry, desktop icon — agrees on where the pet lives. Never the cwd: the
+/// pet's identity must not depend on which directory you started it from.
+fn pinned_root() -> Option<PathBuf> {
+    let cfg = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(std::env::var_os("HOME").expect("HOME unset"))
-                .join(".local/share")
-        })
-        .join("session-pet");
-    let _ = std::fs::create_dir_all(data.join(".state"));
-    let _ = std::fs::create_dir_all(data.join("sprites"));
-    let _ = std::fs::create_dir_all(data.join("sounds"));
-    let core_py = data.join("core.py");
+        .unwrap_or_else(|| home().join(".config"))
+        .join("session-pet/root");
+    let p = PathBuf::from(std::fs::read_to_string(cfg).ok()?.trim());
+    p.is_dir().then_some(p)
+}
+
+/// A repo clone keeps state in the clone; anything else is a standalone
+/// install rooted at `p` (embedded core extracted there).
+fn layout_at(p: PathBuf) -> Layout {
+    if is_repo_root(&p) {
+        return Layout {
+            core_py: p.join("linux/core.py"),
+            assets_json: Some(p.join("native/assets.json")),
+            sprites_dir: p.join("sprites"),
+            root: p,
+        };
+    }
+    for sub in [".state", "sprites", "sounds"] {
+        let _ = std::fs::create_dir_all(p.join(sub));
+    }
+    let core_py = p.join("core.py");
     if std::fs::read_to_string(&core_py).ok().as_deref() != Some(EMBEDDED_CORE) {
         std::fs::write(&core_py, EMBEDDED_CORE).expect("cannot write core.py");
     }
     Layout {
         core_py,
         assets_json: None,
-        sprites_dir: data.join("sprites"),
-        root: data,
+        sprites_dir: p.join("sprites"),
+        root: p,
     }
+}
+
+fn find_layout() -> Layout {
+    // 1. explicit override (tests, one-off runs)
+    if let Some(root) = std::env::var_os("SESSION_PET_ROOT") {
+        return layout_at(PathBuf::from(root));
+    }
+    // 2. running the in-tree binary from a clone — use that clone
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(c) = exe.ancestors().skip(1).find(|p| is_repo_root(p)) {
+            return layout_at(c.to_path_buf());
+        }
+    }
+    // 3. whatever the installer pinned
+    if let Some(root) = pinned_root() {
+        return layout_at(root);
+    }
+    // 4. standalone default under XDG data
+    let data = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".local/share"))
+        .join("session-pet");
+    layout_at(data)
 }
 
 // --- pet window state ------------------------------------------------------

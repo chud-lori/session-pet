@@ -27,8 +27,12 @@ BIN_NAME="session-pet"
 ASSET_PREFIX="session-pet-linux"
 BIN_DIR="${HOME}/.local/bin"
 BIN="${BIN_DIR}/${BIN_NAME}"
-AUTOSTART_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+AUTOSTART_DIR="${CONFIG_DIR}/autostart"
 DESKTOP="${AUTOSTART_DIR}/session-pet.desktop"
+# where the pet keeps .state/ — pinned here so the autostart entry, the
+# desktop icon and a terminal launch all land on the same pet
+ROOT_PIN="${CONFIG_DIR}/session-pet/root"
 
 MODE=auto VERSION=latest AUTOSTART=0 FEATURES=""
 while [ $# -gt 0 ]; do
@@ -40,7 +44,7 @@ while [ $# -gt 0 ]; do
     --autostart)   AUTOSTART=1 ;;
     --uninstall)
       pkill -x "$BIN_NAME" 2>/dev/null || true
-      rm -f "$BIN" "$DESKTOP"
+      rm -f "$BIN" "$DESKTOP" "$ROOT_PIN"
       echo "session-pet uninstalled (state in ~/.local/share/session-pet kept)"
       exit 0 ;;
     *) echo "unknown flag: $1" >&2; exit 2 ;;
@@ -97,6 +101,20 @@ else
   rm -f "$TMP"
 fi
 
+# Pin the state root. The face resolves it from this file when the binary
+# lives outside a clone (~/.local/bin), so the autostart entry — which the
+# session manager starts with cwd=$HOME — finds the same pet as the terminal.
+mkdir -p "$(dirname "$ROOT_PIN")"
+if [ "$IN_CLONE" = 1 ]; then
+  PET_ROOT="$(dirname "$SCRIPT_DIR")"
+  printf '%s\n' "$PET_ROOT" > "$ROOT_PIN"
+elif [ -f "$ROOT_PIN" ] && [ -f "$(cat "$ROOT_PIN")/linux/core.py" ]; then
+  PET_ROOT="$(cat "$ROOT_PIN")"   # keep an earlier clone install's pet
+else
+  PET_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/session-pet"
+  rm -f "$ROOT_PIN"
+fi
+
 if [ "$AUTOSTART" = 1 ]; then
   echo "▸ installing autostart entry"
   mkdir -p "$AUTOSTART_DIR"
@@ -118,4 +136,4 @@ case ":$PATH:" in
   *) echo "note: $BIN_DIR is not on your PATH" ;;
 esac
 echo "Done. Click the pet for its panel · drag to move · right-click for menu."
-echo "State lives in ~/.local/share/session-pet (or the repo when run from a clone)."
+echo "State (XP, species) lives in $PET_ROOT/.state"
