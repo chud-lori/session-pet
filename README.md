@@ -10,7 +10,9 @@ you ship.
 Native on both platforms — Swift/AppKit on macOS, Rust/GTK on Linux — sharing
 one pet, one XP pool, one `.state/state.json`. No Electron, no dependencies.
 
-**Docs & tour:** <https://chud-lori.github.io/session-pet/>
+**Full documentation:** <https://chud-lori.github.io/session-pet/> (install,
+the session phases, the command reference, configuration keys, and how a phase
+is decided)
 
 ## Install
 
@@ -23,7 +25,7 @@ cd session-pet
                             # (LaunchAgent on macOS, XDG autostart on Linux)
 ```
 
-No clone and no toolchain, once a release is published:
+No clone and no toolchain, using the latest published release:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/chud-lori/session-pet/main/install.sh | sh
@@ -63,6 +65,22 @@ until you acknowledge it — motion catches the eye with the volume off.
 **Dots under the pet** (2+ sessions): green = working, yellow = finished,
 blinking red = needs you. **Wandering:** the pet takes short strolls along
 your screen; wherever you drag it or it walks to becomes its new home.
+
+## Session phases
+
+Both providers are normalized to one set of phases, and the phase is what the
+pet's posture, the status dots and the panel cards all report:
+
+| Phase | Means | Timing |
+|---|---|---|
+| `working` | Mid-turn, including a fresh prompt and a parent whose subagents are still writing | Read from the transcript, never from a clock |
+| `ready` | The turn finished and nobody has looked yet | Fades to idle after 3 min unacknowledged |
+| `input` | An agent is asking you something, or a permission prompt arrived through the hook | Double ping, repeated every 45s up to 3 more times |
+| `stalled` | Blocked mid-turn with no output: unhooked prompt, hung tool, crash | After 5 min of silence |
+| `idle` | Quiet, or already acknowledged | Sessions age out after an hour, unless their terminal is open |
+
+Each session that finishes a turn banks 5 XP. The pet hatches at 30 XP, turns
+adult at 200 and legendary at 1000.
 
 ## Optional — permission-prompt alerts
 
